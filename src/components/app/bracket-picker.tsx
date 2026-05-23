@@ -136,65 +136,59 @@ export function BracketPicker({
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto -mx-6 px-6 pb-2">
-            <div
-              className="grid gap-x-3 sm:gap-x-4 min-w-[1100px]"
-              style={{
-                gridTemplateColumns: "repeat(5, minmax(180px, 1fr))",
-                gridTemplateRows: "repeat(16, minmax(60px, auto))",
-              }}
-            >
-              {ROUNDS.map((round, colIdx) => {
-                const rounds = matchesByRound[round];
-                const rowsPer = ROWS_PER_MATCH[round];
-                return (
+            <div className="min-w-[1100px]">
+              {/* Headers de columna fuera del grid para no chocar con la primera fila */}
+              <div
+                className="grid gap-x-3 sm:gap-x-4 mb-3 sticky top-0 z-10 bg-[var(--color-surface)] py-2"
+                style={{
+                  gridTemplateColumns: "repeat(5, minmax(180px, 1fr))",
+                }}
+              >
+                {ROUNDS.map((round) => (
                   <div
                     key={round}
-                    className="contents"
-                    aria-label={`Columna ${ROUND_LABELS[round]}`}
+                    className="text-xs uppercase tracking-wider text-[var(--color-text-muted)] font-semibold text-center"
                   >
-                    <div
-                      style={{
-                        gridColumn: colIdx + 1,
-                        gridRow: "1 / -1",
-                      }}
-                      className="hidden"
-                    />
-                    <div
-                      className="text-xs uppercase tracking-wider text-[var(--color-text-muted)] font-medium text-center pb-2 sticky top-0 bg-[var(--color-surface)] z-10"
-                      style={{
-                        gridColumn: colIdx + 1,
-                        gridRow: "1",
-                        height: "auto",
-                      }}
-                    >
-                      {ROUND_LABELS[round]}
-                    </div>
-                    {rounds.map((m, idx) => {
-                      const startRow = idx * rowsPer + 1;
-                      const endRow = startRow + rowsPer;
-                      return (
-                        <div
-                          key={m.id}
-                          style={{
-                            gridColumn: colIdx + 1,
-                            gridRow: `${startRow} / ${endRow}`,
-                          }}
-                          className="flex items-center justify-center"
-                        >
-                          <MatchCell
-                            match={m}
-                            pick={picks[m.id]}
-                            pending={pendingMatchId === m.id}
-                            error={errorByMatch[m.id]}
-                            locked={locked}
-                            onPick={(code) => handlePick(m.id, m.round, code)}
-                          />
-                        </div>
-                      );
-                    })}
+                    {ROUND_LABELS[round]}
                   </div>
-                );
-              })}
+                ))}
+              </div>
+
+              {/* Grid del bracket con alturas de fila fijas para que las parejas alineen */}
+              <div
+                className="grid gap-x-3 sm:gap-x-4"
+                style={{
+                  gridTemplateColumns: "repeat(5, minmax(180px, 1fr))",
+                  gridTemplateRows: "repeat(16, 84px)",
+                }}
+              >
+                {ROUNDS.map((round, colIdx) =>
+                  matchesByRound[round].map((m, idx) => {
+                    const rowsPer = ROWS_PER_MATCH[round];
+                    const startRow = idx * rowsPer + 1;
+                    const endRow = startRow + rowsPer;
+                    return (
+                      <div
+                        key={m.id}
+                        style={{
+                          gridColumn: colIdx + 1,
+                          gridRow: `${startRow} / ${endRow}`,
+                        }}
+                        className="flex items-center justify-center min-w-0"
+                      >
+                        <MatchCell
+                          match={m}
+                          pick={picks[m.id]}
+                          pending={pendingMatchId === m.id}
+                          error={errorByMatch[m.id]}
+                          locked={locked}
+                          onPick={(code) => handlePick(m.id, m.round, code)}
+                        />
+                      </div>
+                    );
+                  }),
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
