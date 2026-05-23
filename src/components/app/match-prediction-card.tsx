@@ -205,7 +205,7 @@ export function MatchPredictionCard({
       {needsPenaltyPick && !locked && (
         <div className="mt-4 pt-3 border-t border-[var(--color-border)]">
           <p className="text-xs sm:text-sm font-medium text-[var(--color-text)] mb-2">
-            Empate. ¿Quién pasa por penales?
+            Empate. ¿Quién pasa?
           </p>
           <div className="grid grid-cols-2 gap-2">
             <button

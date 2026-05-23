@@ -74,7 +74,7 @@ export async function savePredictionAction(input: {
     if (!parsed.data.penaltyWinnerCode) {
       return {
         ok: false,
-        error: "En empate de eliminatoria debes definir quién pasa por penales.",
+        error: "En empate de eliminatoria debes definir quién pasa.",
       };
     }
     if (
@@ -83,7 +83,7 @@ export async function savePredictionAction(input: {
     ) {
       return {
         ok: false,
-        error: "El equipo de penales debe ser uno de los dos del partido.",
+        error: "El equipo que pasa debe ser uno de los dos del partido.",
       };
     }
     penaltyWinner = parsed.data.penaltyWinnerCode;
