@@ -141,7 +141,7 @@ function SignupForm() {
           <Input
             id="name"
             name="name"
-            placeholder="Alberto"
+            placeholder="Tu nombre"
             autoComplete="off"
             required
           />
@@ -214,7 +214,7 @@ function LoginForm() {
           <Input
             id="name"
             name="name"
-            placeholder="Alberto"
+            placeholder="Tu nombre"
             autoComplete="username"
             required
           />

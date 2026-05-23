@@ -11,19 +11,33 @@ interface NavLink {
   icon: typeof Target;
 }
 
-const LINKS: NavLink[] = [
-  { href: "/pronosticos/grupos", label: "Grupos", icon: Target },
-  { href: "/pronosticos/terceros", label: "Mejores terceros", icon: Sparkles },
-  { href: "/pronosticos/bracket-inicio", label: "Bracket desde inicio", icon: Trophy },
-  { href: "/pronosticos/eliminatorias/r32", label: "Eliminatorias", icon: Goal },
-];
+interface SubNavProps {
+  earlyEnabled: boolean;
+}
 
-export function PronosticosSubNav() {
+export function PronosticosSubNav({ earlyEnabled }: SubNavProps) {
   const pathname = usePathname();
+
+  const links: NavLink[] = [
+    { href: "/pronosticos/grupos", label: "Grupos", icon: Target },
+    { href: "/pronosticos/terceros", label: "Mejores terceros", icon: Sparkles },
+  ];
+  if (earlyEnabled) {
+    links.push({
+      href: "/pronosticos/bracket-inicio",
+      label: "Bracket desde inicio",
+      icon: Trophy,
+    });
+  }
+  links.push({
+    href: "/pronosticos/eliminatorias/r32",
+    label: "Eliminatorias",
+    icon: Goal,
+  });
 
   return (
     <nav className="flex gap-2 overflow-x-auto scrollbar-none -mx-4 sm:-mx-0 px-4 sm:px-0">
-      {LINKS.map(({ href, label, icon: Icon }) => {
+      {links.map(({ href, label, icon: Icon }) => {
         const active =
           href === pathname ||
           (href.startsWith("/pronosticos/eliminatorias") &&

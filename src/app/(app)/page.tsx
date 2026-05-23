@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Trophy, Medal, Award, Target, Sparkles, Goal, BookOpen, ChartLine, Clock, TrendingUp, Users } from "lucide-react";
+import { Trophy, Medal, Award, Target, Sparkles, Goal, ChartLine, Clock, TrendingUp, Users } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -557,10 +557,9 @@ function QuickActions({ earlyBracketOn }: { earlyBracketOn: boolean }) {
       : { href: "/bracket", label: "Bracket", icon: Trophy, color: "var(--color-gold)" },
     { href: "/estadisticas", label: "Estadísticas", icon: ChartLine, color: "var(--color-primary)" },
     { href: "/pronosticos-publicos", label: "Públicos", icon: Users, color: "var(--color-text-muted)" },
-    { href: "/reglas", label: "Reglas", icon: BookOpen, color: "var(--color-text-muted)" },
   ];
   return (
-    <div className="grid grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3">
+    <div className="grid grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
       {links.map((l) => (
         <Link
           key={l.href}
