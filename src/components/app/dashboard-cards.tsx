@@ -27,7 +27,7 @@ const ITEMS: DashboardItem[] = [
   },
   {
     href: "/bracket",
-    title: "Bracket",
+    title: "Cuadro",
     description: "Tu cuadro de eliminatorias.",
     icon: Trophy,
   },

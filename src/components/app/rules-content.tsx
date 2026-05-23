@@ -58,9 +58,9 @@ export async function RulesContent({ compact = false }: { compact?: boolean }) {
 
       <Card style={{ background: "var(--gradient-card-accent)" }}>
         <CardHeader>
-          <CardTitle>Bracket desde el inicio (opcional)</CardTitle>
+          <CardTitle>Cuadro desde el inicio (opcional)</CardTitle>
           <CardDescription>
-            Si el admin lo activa, llenas el bracket completo desde antes del Mundial.
+            Si el admin lo activa, llenas el cuadro completo desde antes del Mundial.
             Bonus por cada equipo que efectivamente llegue a esa ronda.
           </CardDescription>
         </CardHeader>

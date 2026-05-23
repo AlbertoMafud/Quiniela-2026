@@ -25,6 +25,12 @@ import {
   type MatchRow as UIMatchRow,
   type PickRow as UIPickRow,
 } from "./_components/group-breakdown";
+import {
+  RoundBreakdown,
+  type RoundMatchRow,
+  type RoundPickRow,
+} from "./_components/round-breakdown";
+import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
 
 export const metadata = { title: "Ranking" };
 
@@ -178,6 +184,13 @@ export default async function RankingPage() {
 
       <SummaryTable totals={totals} mePlayerId={session.playerId} />
 
+      <EliminationsSection
+        matchList={matchList}
+        teamsByCode={teamsByCode}
+        playersById={playersById}
+        matchPredsMap={matchPredsMap}
+      />
+
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-base font-[family-name:var(--font-display)] font-semibold text-[var(--color-text)]">
           <Globe className="h-5 w-5 text-[var(--color-info)]" />
@@ -263,6 +276,83 @@ export default async function RankingPage() {
   );
 }
 
+function EliminationsSection({
+  matchList,
+  teamsByCode,
+  playersById,
+  matchPredsMap,
+}: {
+  matchList: MatchDB[];
+  teamsByCode: Map<string, TeamDB>;
+  playersById: Map<string, PlayerDB>;
+  matchPredsMap: ReturnType<typeof breakdownByMatch>;
+}) {
+  const ROUNDS_ORDER: Round[] = ["r32", "r16", "qf", "sf", "final"];
+  const elimMatches = matchList.filter((m) => m.stage !== "group");
+  if (elimMatches.length === 0) return null;
+
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-base font-[family-name:var(--font-display)] font-semibold text-[var(--color-text)]">
+        <Goal className="h-5 w-5 text-[var(--color-accent)]" />
+        Eliminatorias
+      </h2>
+      {ROUNDS_ORDER.map((round) => {
+        const roundMatches = elimMatches
+          .filter((m) => m.stage === round)
+          .sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+
+        const uiMatches: RoundMatchRow[] = roundMatches.map((m) => {
+          const home = teamsByCode.get(m.home_team_code ?? "");
+          const away = teamsByCode.get(m.away_team_code ?? "");
+          return {
+            id: m.id,
+            kickoff_at: m.kickoff_at,
+            home_name: home?.name ?? m.home_team_code ?? "Por definir",
+            home_emoji: home?.flag_emoji ?? null,
+            away_name: away?.name ?? m.away_team_code ?? "Por definir",
+            away_emoji: away?.flag_emoji ?? null,
+            home_score: m.home_score,
+            away_score: m.away_score,
+          };
+        });
+
+        const picksByMatch: Record<string, RoundPickRow[]> = {};
+        for (const m of roundMatches) {
+          const list = matchPredsMap.get(m.id) ?? [];
+          picksByMatch[m.id] = list
+            .map((row) => ({
+              player_id: row.player_id,
+              player_name: playersById.get(row.player_id)?.name ?? "?",
+              pred_home: row.pred_home,
+              pred_away: row.pred_away,
+              points: row.points,
+              exact: row.exact,
+              winner: row.winner,
+            }))
+            .sort((a, b) => b.points - a.points);
+        }
+
+        const playedCount = roundMatches.filter(
+          (m) => m.home_score !== null && m.away_score !== null,
+        ).length;
+
+        return (
+          <RoundBreakdown
+            key={round}
+            label={ROUND_LABELS[round]}
+            matches={uiMatches}
+            picksByMatch={picksByMatch}
+            playedCount={playedCount}
+            totalCount={roundMatches.length}
+            defaultOpen={false}
+          />
+        );
+      })}
+    </section>
+  );
+}
+
 function SummaryTable({
   totals,
   mePlayerId,
@@ -314,7 +404,7 @@ function SummaryTable({
                 </th>
                 <th className="text-center py-2 px-2 font-medium">
                   <Goal className="inline h-3.5 w-3.5 text-[var(--color-accent)] mr-1" />
-                  Bracket
+                  Cuadro
                 </th>
                 <th className="text-right py-2 px-4 sm:px-2 font-semibold text-[var(--color-success)]">Total</th>
               </tr>

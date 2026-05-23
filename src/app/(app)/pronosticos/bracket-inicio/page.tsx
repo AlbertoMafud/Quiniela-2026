@@ -13,7 +13,7 @@ import { resolveBracket, type PicksMap } from "@/lib/derive-bracket";
 import { BracketPicker } from "./_components/bracket-picker";
 import { formatDateMx } from "@/lib/utils";
 
-export const metadata = { title: "Bracket desde el inicio" };
+export const metadata = { title: "Cuadro desde el inicio" };
 
 interface TeamRow { code: string; name: string; group_letter: string; flag_emoji: string | null }
 interface MatchRow { id: string; group_letter: string | null; home_team_code: string | null; away_team_code: string | null }
@@ -73,14 +73,14 @@ export default async function BracketInicioPage() {
       <div className="space-y-5">
         <header>
           <h1 className="font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.25rem)] font-semibold tracking-tight">
-            Bracket desde el inicio
+            Cuadro desde el inicio
           </h1>
         </header>
         <Card>
           <CardHeader>
             <CardTitle>No está activo</CardTitle>
             <CardDescription>
-              Esta modalidad opcional permite llenar el bracket completo desde
+              Esta modalidad opcional permite llenar el cuadro completo desde
               antes del Mundial, ganando puntos bonus si los equipos que eliges
               efectivamente llegan a esa ronda. El administrador la activa desde el
               panel.
@@ -149,7 +149,7 @@ export default async function BracketInicioPage() {
     <div className="space-y-5">
       <header>
         <h1 className="font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.25rem)] font-semibold tracking-tight">
-          Bracket desde el inicio
+          Cuadro desde el inicio
         </h1>
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
           Si los equipos que escoges aquí efectivamente llegan a esa ronda, ganas puntos bonus.

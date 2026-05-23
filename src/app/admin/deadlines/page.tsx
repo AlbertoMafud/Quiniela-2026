@@ -15,16 +15,16 @@ interface DeadlineRow { stage: string; deadline_at: string }
 const STAGE_LABELS: Record<string, string> = {
   group_stage: "Fase de grupos (marcadores)",
   thirds: "Selección de 8 mejores terceros",
-  early_bracket: "Bracket desde el inicio",
-  r32_picks: "Selecciones de 16avos (bracket)",
+  early_bracket: "Cuadro desde el inicio",
+  r32_picks: "Selecciones de 16avos (cuadro)",
   r32_scores: "Marcadores de 16avos",
-  r16_picks: "Selecciones de octavos (bracket)",
+  r16_picks: "Selecciones de octavos (cuadro)",
   r16_scores: "Marcadores de octavos",
-  qf_picks: "Selecciones de cuartos (bracket)",
+  qf_picks: "Selecciones de cuartos (cuadro)",
   qf_scores: "Marcadores de cuartos",
-  sf_picks: "Selecciones de semifinales (bracket)",
+  sf_picks: "Selecciones de semifinales (cuadro)",
   sf_scores: "Marcadores de semifinales",
-  final_picks: "Selecciones de la final (bracket)",
+  final_picks: "Selecciones de la final (cuadro)",
   final_scores: "Marcador de la final",
 };
 

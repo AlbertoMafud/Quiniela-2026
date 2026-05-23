@@ -45,7 +45,7 @@ export function ScoringForm({ initial }: { initial: Params }) {
 
       <fieldset className="space-y-4 pt-2 border-t border-[var(--color-border)]">
         <legend className="text-sm font-medium text-[var(--color-text)]">
-          Bonus bracket-desde-inicio
+          Bonus del cuadro desde el inicio
         </legend>
         <FieldRow name="early_r32_bonus" label="Equipo llega a R32" defaultValue={initial.early_r32_bonus} />
         <FieldRow name="early_r16_bonus" label="Equipo llega a R16" defaultValue={initial.early_r16_bonus} />

@@ -111,7 +111,7 @@ export default async function EliminatoriasRondaPage({
               href="/bracket"
               className="text-[var(--color-primary)] font-medium hover:underline"
             >
-              Ver bracket →
+              Ver cuadro de eliminatorias →
             </Link>
           </CardContent>
         </Card>

@@ -25,7 +25,7 @@ export function PronosticosSubNav({ earlyEnabled }: SubNavProps) {
   if (earlyEnabled) {
     links.push({
       href: "/pronosticos/bracket-inicio",
-      label: "Bracket desde inicio",
+      label: "Cuadro desde el inicio",
       icon: Trophy,
     });
   }

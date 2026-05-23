@@ -26,7 +26,7 @@ interface TeamRow { code: string; name: string; flag_emoji: string | null }
 const STAGE_PRETTY: Record<string, string> = {
   group_stage: "Fase de grupos",
   thirds: "Mejores terceros",
-  early_bracket: "Bracket desde inicio",
+  early_bracket: "Cuadro desde el inicio",
   r32_picks: "Selecciones 16avos",
   r32_scores: "Marcadores 16avos",
   r16_picks: "Selecciones octavos",
@@ -169,14 +169,14 @@ export default async function DashboardPage() {
             />
             {earlyBracketOn && (
               <ProgressBar
-                label="Bracket desde el inicio"
+                label="Cuadro desde el inicio"
                 done={bracketDone}
                 total={bracketTotal}
                 href="/pronosticos/bracket-inicio"
                 icon={Trophy}
                 accent
-                infoTitle="Bracket desde el inicio (opcional)"
-                infoDescription="Si el admin lo activa, llenas TODO el cuadro de eliminatorias desde antes del Mundial usando tus pronósticos de grupos + 8 terceros. Por cada equipo que llegue realmente a esa ronda ganas bonus: 1 pt en R32, 2 en octavos, 3 en cuartos, 4 en semis, 5 en la final."
+                infoTitle="Cuadro desde el inicio (opcional)"
+                infoDescription="Si el admin lo activa, llenas TODO el cuadro de eliminatorias desde antes del Mundial usando tus pronósticos de grupos + 8 terceros. Por cada equipo que llegue realmente a esa ronda ganas bonus: 1 pt en 16avos, 2 en octavos, 3 en cuartos, 4 en semifinales, 5 en la final."
               />
             )}
             <ProgressBar
@@ -553,8 +553,8 @@ function QuickActions({ earlyBracketOn }: { earlyBracketOn: boolean }) {
     { href: "/pronosticos/grupos", label: "Grupos", icon: Target, color: "var(--color-primary)" },
     { href: "/pronosticos/terceros", label: "Terceros", icon: Sparkles, color: "var(--color-warning)" },
     earlyBracketOn
-      ? { href: "/pronosticos/bracket-inicio", label: "Bracket inicio", icon: Trophy, color: "var(--color-accent)" }
-      : { href: "/bracket", label: "Bracket", icon: Trophy, color: "var(--color-gold)" },
+      ? { href: "/pronosticos/bracket-inicio", label: "Cuadro inicio", icon: Trophy, color: "var(--color-accent)" }
+      : { href: "/bracket", label: "Cuadro", icon: Trophy, color: "var(--color-gold)" },
     { href: "/estadisticas", label: "Estadísticas", icon: ChartLine, color: "var(--color-primary)" },
     { href: "/pronosticos-publicos", label: "Públicos", icon: Users, color: "var(--color-text-muted)" },
   ];

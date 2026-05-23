@@ -15,7 +15,7 @@ import {
 import { resolveBracket, type PicksMap } from "@/lib/derive-bracket";
 import { BracketPickerWrapper } from "./_components/bracket-picker-wrapper";
 
-export const metadata = { title: "Bracket" };
+export const metadata = { title: "Cuadro de eliminatorias" };
 
 interface TeamRow {
   code: string;
@@ -90,7 +90,7 @@ export default async function BracketPage() {
       <div className="space-y-5">
         <header>
           <h1 className="font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.25rem)] font-semibold tracking-tight">
-            Bracket
+            Cuadro de eliminatorias
           </h1>
           <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
             Disponible cuando termine la fase de grupos.
@@ -102,12 +102,12 @@ export default async function BracketPage() {
             <CardDescription>
               Llevamos {done} de {totalGroup} partidos de fase de grupos con
               resultado oficial. Cuando estén los 72 marcadores reales, podrás llenar
-              tu bracket de eliminatorias.
+              tu cuadro de eliminatorias.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-[var(--color-text-muted)]">
-              Mientras tanto, si el bracket-desde-inicio está activo, puedes irlo
+              Mientras tanto, si el cuadro desde el inicio está activo, puedes irlo
               llenando con tus pronósticos.
             </p>
           </CardContent>
@@ -136,7 +136,7 @@ export default async function BracketPage() {
     <div className="space-y-5">
       <header>
         <h1 className="font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.25rem)] font-semibold tracking-tight">
-          Bracket
+          Cuadro de eliminatorias
         </h1>
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
           Llena tu cuadro de eliminatorias con los equipos reales que pasaron.

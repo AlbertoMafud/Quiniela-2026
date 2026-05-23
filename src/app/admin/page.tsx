@@ -50,10 +50,10 @@ export default async function AdminDashboardPage() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>• <strong>Resultados</strong>: meter marcadores reales conforme van pasando los partidos.</p>
-          <p>• <strong>Puntos</strong>: ajustar cuánto valen aciertos y bonus de bracket.</p>
+          <p>• <strong>Puntos</strong>: ajustar cuánto valen aciertos y bonus del cuadro.</p>
           <p>• <strong>Deadlines</strong>: fechas de cierre por etapa. Lo que pase el deadline ya no se puede editar.</p>
           <p>• <strong>Usuarios</strong>: ver jugadores, resetear PIN, marcar admin.</p>
-          <p>• <strong>Config</strong>: activar bracket-desde-el-inicio y auto-ingesta de resultados.</p>
+          <p>• <strong>Config</strong>: activar cuadro desde el inicio y auto-ingesta de resultados.</p>
         </CardContent>
       </Card>
     </div>

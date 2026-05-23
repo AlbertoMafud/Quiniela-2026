@@ -77,7 +77,7 @@ export default function HerramientasPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Bracket de eliminatorias</CardTitle>
+          <CardTitle>Cuadro de eliminatorias</CardTitle>
           <CardDescription>
             Crea los matches de R32..Final a partir de los standings reales.
             Solo funciona cuando la fase de grupos esté completa.
@@ -87,7 +87,7 @@ export default function HerramientasPage() {
           <ToolButton
             action={createKnockoutMatchesAction}
             label="Crear matches de eliminatorias (R32..Final)"
-            description="Computa standings reales, top-2 + 8 mejores terceros, y crea los 31 partidos del bracket. R32 con equipos reales; rondas siguientes con TBD que se resuelven cuando metas resultados."
+            description="Computa standings reales, top-2 + 8 mejores terceros, y crea los 31 partidos del cuadro. 16avos con equipos reales; rondas siguientes con pendiente que se resuelven cuando metas resultados."
           />
         </CardContent>
       </Card>

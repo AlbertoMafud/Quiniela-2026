@@ -23,7 +23,7 @@ interface NavProps {
 const PRIMARY_LINKS = [
   { href: "/", label: "Inicio", icon: Home },
   { href: "/pronosticos/grupos", label: "Pronósticos", icon: Target },
-  { href: "/bracket", label: "Bracket", icon: Trophy },
+  { href: "/bracket", label: "Cuadro", icon: Trophy },
   { href: "/ranking", label: "Ranking", icon: BarChart3 },
 ] as const;
 

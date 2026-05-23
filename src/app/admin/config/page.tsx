@@ -35,9 +35,9 @@ export default async function ConfigPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Bracket desde el inicio</CardTitle>
+          <CardTitle>Cuadro desde el inicio</CardTitle>
           <CardDescription>
-            Si está activo, los jugadores llenan su bracket completo desde antes
+            Si está activo, los jugadores llenan su cuadro completo desde antes
             del Mundial (basado en sus pronósticos de grupos + 8 terceros). Si esos
             picks tempranos efectivamente llegan a cada ronda, ganan puntos bonus.
           </CardDescription>
@@ -45,7 +45,7 @@ export default async function ConfigPage() {
         <CardContent>
           <ConfigToggle
             keyName="early_bracket_enabled"
-            label="Activar bracket desde el inicio"
+            label="Activar cuadro desde el inicio"
             enabled={map.get("early_bracket_enabled") ?? false}
           />
         </CardContent>

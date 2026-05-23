@@ -35,7 +35,7 @@ export async function saveEarlyPickAction(input: {
     .eq("key", "early_bracket_enabled")
     .maybeSingle<{ value: unknown }>();
   if (!cfg || !Boolean(cfg.value)) {
-    return { ok: false, error: "El bracket desde el inicio no está activo." };
+    return { ok: false, error: "El cuadro desde el inicio no está activo." };
   }
 
   // Deadline guard.
@@ -45,7 +45,7 @@ export async function saveEarlyPickAction(input: {
     .eq("stage", "early_bracket")
     .maybeSingle<{ deadline_at: string }>();
   if (deadline && new Date(deadline.deadline_at) <= new Date()) {
-    return { ok: false, error: "El deadline para bracket desde el inicio ya pasó." };
+    return { ok: false, error: "El cierre del cuadro desde el inicio ya pasó." };
   }
 
   if (parsed.data.winnerTeamCode === null) {
