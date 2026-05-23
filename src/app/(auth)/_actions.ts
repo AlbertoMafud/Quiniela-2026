@@ -56,10 +56,16 @@ export async function registerAction(
     return { error: "Ya existe un jugador con ese nombre. Elige otro." };
   }
 
+  // Auto-promote primer jugador a admin para arrancar la quiniela.
+  const { count } = await supabase
+    .from("players")
+    .select("*", { count: "exact", head: true });
+  const shouldBeAdmin = (count ?? 0) === 0;
+
   const pin_hash = await hashPin(pin);
   const { data: player, error } = await supabase
     .from("players")
-    .insert({ name, pin_hash } as never)
+    .insert({ name, pin_hash, is_admin: shouldBeAdmin } as never)
     .select("id")
     .single<{ id: string }>();
   if (error || !player) {
