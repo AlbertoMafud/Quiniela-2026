@@ -3,6 +3,7 @@ import { Trophy, Medal, Award, Target, Sparkles, Goal, BookOpen, ChartLine, Cloc
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { formatDateMx } from "@/lib/utils";
 import { DashboardWelcome } from "@/components/app/dashboard-welcome";
 import { ROUND_LABELS } from "@/lib/bracket-structure";
@@ -154,6 +155,8 @@ export default async function DashboardPage() {
               total={groupTotal}
               href="/pronosticos/grupos"
               icon={Target}
+              infoTitle="Pronósticos de fase de grupos"
+              infoDescription="Mete tu marcador exacto para cada uno de los 72 partidos de la primera ronda (12 grupos × 6 partidos). Ganas 3 pts por marcador exacto y 2 pts por adivinar al ganador (o empate). Puedes editar hasta que pase el deadline."
             />
             <ProgressBar
               label="Mejores terceros"
@@ -161,6 +164,8 @@ export default async function DashboardPage() {
               total={thirdsTotal}
               href="/pronosticos/terceros"
               icon={Sparkles}
+              infoTitle="Mejores terceros"
+              infoDescription="Pasan a R32 los top-2 de cada grupo (24) + los 8 mejores terceros lugares (de los 12 grupos). Aquí escoges cuáles 8 terceros de tus pronósticos crees que avanzarán. Necesitas haber completado los 72 pronósticos de grupos primero."
             />
             {earlyBracketOn && (
               <ProgressBar
@@ -170,6 +175,8 @@ export default async function DashboardPage() {
                 href="/pronosticos/bracket-inicio"
                 icon={Trophy}
                 accent
+                infoTitle="Bracket desde el inicio (opcional)"
+                infoDescription="Si el admin lo activa, llenas TODO el cuadro de eliminatorias desde antes del Mundial usando tus pronósticos de grupos + 8 terceros. Por cada equipo que llegue realmente a esa ronda ganas bonus: 1 pt en R32, 2 en octavos, 3 en cuartos, 4 en semis, 5 en la final."
               />
             )}
             <ProgressBar
@@ -179,6 +186,8 @@ export default async function DashboardPage() {
               href="/pronosticos/eliminatorias/r32"
               icon={Goal}
               hint="Se habilita cuando los partidos de cada ronda estén cargados"
+              infoTitle="Marcadores de eliminatorias"
+              infoDescription="Cada ronda (32vos → final) tienes que meter los marcadores exactos de cada partido para ganar puntos. Mismo sistema: 3 pts marcador exacto, 2 pts ganador correcto. Se va habilitando cada ronda cuando se conozcan los equipos reales que pasan."
             />
           </CardContent>
         </Card>
@@ -394,6 +403,8 @@ function ProgressBar({
   icon: Icon,
   accent,
   hint,
+  infoTitle,
+  infoDescription,
 }: {
   label: string;
   done: number;
@@ -402,16 +413,15 @@ function ProgressBar({
   icon: typeof Target;
   accent?: boolean;
   hint?: string;
+  infoTitle?: string;
+  infoDescription?: string;
 }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const complete = done >= total && total > 0;
   return (
-    <Link
-      href={href}
-      className="block rounded-[var(--radius-md)] p-3 sm:p-4 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] transition-colors"
-    >
+    <div className="rounded-[var(--radius-md)] p-3 sm:p-4 bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] transition-colors">
       <div className="flex items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2 min-w-0">
+        <Link href={href} className="flex items-center gap-2 min-w-0 flex-1">
           <Icon
             className={
               accent
@@ -420,7 +430,10 @@ function ProgressBar({
             }
           />
           <span className="font-medium text-sm text-[var(--color-text)] truncate">{label}</span>
-        </div>
+          {infoTitle && infoDescription && (
+            <InfoTooltip title={infoTitle} description={infoDescription} />
+          )}
+        </Link>
         <span
           className={
             complete
@@ -431,22 +444,24 @@ function ProgressBar({
           {done} / {total}
         </span>
       </div>
-      <div className="h-1.5 rounded-full bg-[var(--color-bg)] overflow-hidden">
-        <div
-          className={
-            accent
-              ? "h-full bg-[var(--color-accent)] transition-all duration-500"
-              : complete
-                ? "h-full bg-[var(--color-success)] transition-all duration-500"
-                : "h-full bg-[var(--color-primary)] transition-all duration-500"
-          }
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+      <Link href={href} className="block">
+        <div className="h-1.5 rounded-full bg-[var(--color-bg)] overflow-hidden">
+          <div
+            className={
+              accent
+                ? "h-full bg-[var(--color-accent)] transition-all duration-500"
+                : complete
+                  ? "h-full bg-[var(--color-success)] transition-all duration-500"
+                  : "h-full bg-[var(--color-primary)] transition-all duration-500"
+            }
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </Link>
       {hint && (
         <p className="mt-2 text-xs text-[var(--color-text-subtle)]">{hint}</p>
       )}
-    </Link>
+    </div>
   );
 }
 
