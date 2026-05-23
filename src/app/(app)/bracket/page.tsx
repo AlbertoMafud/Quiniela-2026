@@ -23,7 +23,7 @@ interface TeamRow {
   group_letter: string;
   flag_emoji: string | null;
 }
-interface MatchRow {
+interface GroupMatchRow {
   id: string;
   group_letter: string | null;
   home_team_code: string | null;
@@ -31,10 +31,22 @@ interface MatchRow {
   home_score: number | null;
   away_score: number | null;
 }
+interface ElimMatchRow {
+  id: string;
+  stage: string;
+  home_team_code: string | null;
+  away_team_code: string | null;
+}
 interface PickRow {
   round: string;
   slot_id: string;
   winner_team_code: string | null;
+}
+interface ElimPredRow {
+  match_id: string;
+  home_score: number;
+  away_score: number;
+  penalty_winner_code: string | null;
 }
 
 export default async function BracketPage() {
@@ -43,7 +55,13 @@ export default async function BracketPage() {
 
   const supabase = adminClient();
 
-  const [{ data: teams }, { data: matches }, { data: picks }] = await Promise.all([
+  const [
+    { data: teams },
+    { data: groupMatches },
+    { data: r32Matches },
+    { data: r32Predictions },
+    { data: picks },
+  ] = await Promise.all([
     supabase.from("teams").select("code, name, group_letter, flag_emoji"),
     supabase
       .from("matches")
@@ -52,15 +70,22 @@ export default async function BracketPage() {
       )
       .eq("stage", "group"),
     supabase
+      .from("matches")
+      .select("id, stage, home_team_code, away_team_code")
+      .eq("stage", "r32"),
+    supabase
+      .from("predictions")
+      .select("match_id, home_score, away_score, penalty_winner_code")
+      .eq("player_id", session.playerId),
+    supabase
       .from("bracket_picks")
       .select("round, slot_id, winner_team_code")
       .eq("player_id", session.playerId),
   ]);
 
   const teamsList = (teams ?? []) as TeamRow[];
-  const matchRows = (matches ?? []) as MatchRow[];
+  const matchRows = (groupMatches ?? []) as GroupMatchRow[];
 
-  // Solo cuentan partidos de grupos con marcador real definido.
   const finishedMatches: MatchScore[] = [];
   let pendingMatches = 0;
   for (const m of matchRows) {
@@ -119,9 +144,35 @@ export default async function BracketPage() {
   const standings = computeStandings(teamsList, finishedMatches);
   const thirds = bestThirds(standings).map((r) => r.team_code);
 
+  // picksMap: para R32 se DERIVA del pronóstico del jugador (no editable).
+  // Para R16+ viene de bracket_picks (editable manualmente).
   const picksMap: PicksMap = {};
+
+  // R16+ desde bracket_picks
   for (const p of (picks ?? []) as PickRow[]) {
-    picksMap[p.slot_id] = p.winner_team_code;
+    if (p.round !== "r32") {
+      picksMap[p.slot_id] = p.winner_team_code;
+    }
+  }
+
+  // R32 derivado de pronósticos
+  const r32MatchRows = (r32Matches ?? []) as ElimMatchRow[];
+  const r32PredMap = new Map(
+    ((r32Predictions ?? []) as ElimPredRow[]).map((p) => [p.match_id, p]),
+  );
+  for (const m of r32MatchRows) {
+    const pred = r32PredMap.get(m.id);
+    if (!pred) {
+      picksMap[m.id] = null;
+      continue;
+    }
+    if (pred.home_score > pred.away_score) {
+      picksMap[m.id] = m.home_team_code;
+    } else if (pred.away_score > pred.home_score) {
+      picksMap[m.id] = m.away_team_code;
+    } else {
+      picksMap[m.id] = pred.penalty_winner_code;
+    }
   }
 
   const teamMap = new Map(teamsList.map((t) => [t.code, t]));
@@ -139,7 +190,8 @@ export default async function BracketPage() {
           Cuadro de eliminatorias
         </h1>
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
-          Llena tu cuadro de eliminatorias con los equipos reales que pasaron.
+          Los 16avos se llenan automáticamente con los ganadores de tus pronósticos.
+          De octavos en adelante eliges quién pasa cada partido.
         </p>
       </header>
 

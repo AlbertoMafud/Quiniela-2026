@@ -23,7 +23,12 @@ interface MatchRow {
   home_team_code: string | null;
   away_team_code: string | null;
 }
-interface PredRow { match_id: string; home_score: number; away_score: number }
+interface PredRow {
+  match_id: string;
+  home_score: number;
+  away_score: number;
+  penalty_winner_code: string | null;
+}
 
 export async function generateMetadata({
   params,
@@ -59,7 +64,7 @@ export default async function EliminatoriasRondaPage({
       supabase.from("teams").select("code, name, flag_emoji"),
       supabase
         .from("predictions")
-        .select("match_id, home_score, away_score")
+        .select("match_id, home_score, away_score, penalty_winner_code")
         .eq("player_id", session.playerId),
       supabase
         .from("deadlines")
@@ -139,6 +144,8 @@ export default async function EliminatoriasRondaPage({
                 away={away}
                 initialHome={pred?.home_score ?? null}
                 initialAway={pred?.away_score ?? null}
+                initialPenaltyWinner={pred?.penalty_winner_code ?? null}
+                requirePenaltyWinner
                 locked={locked}
                 lockReason={locked ? "Cierre pasado." : undefined}
               />

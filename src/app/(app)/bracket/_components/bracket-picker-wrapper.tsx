@@ -15,5 +15,13 @@ export function BracketPickerWrapper({
   async function save(input: SavePickInput) {
     return saveBracketPickAction(input);
   }
-  return <BracketPicker matches={matches} locked={false} saveAction={save} />;
+  return (
+    <BracketPicker
+      matches={matches}
+      locked={false}
+      saveAction={save}
+      lockedRounds={["r32"]}
+      description="Los 16avos se llenan solos con los ganadores de tus pronósticos (en azul). Octavos en adelante los eliges tú."
+    />
+  );
 }

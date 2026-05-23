@@ -31,6 +31,8 @@ interface BracketPickerProps {
   lockReason?: string;
   saveAction: SavePickFn;
   description?: string;
+  /** Rondas que no permiten edición (por ej. R32 derivado de pronósticos en /bracket). */
+  lockedRounds?: Round[];
 }
 
 const ROUNDS: Round[] = ["r32", "r16", "qf", "sf", "final"];
@@ -55,7 +57,9 @@ export function BracketPicker({
   lockReason,
   saveAction,
   description,
+  lockedRounds = [],
 }: BracketPickerProps) {
+  const lockedSet = new Set<Round>(lockedRounds);
   const [picks, setPicks] = useState<Record<string, string | null>>(() => {
     const init: Record<string, string | null> = {};
     for (const m of matches) init[m.id] = m.pick;
@@ -93,7 +97,7 @@ export function BracketPicker({
   }, [matches, picks]);
 
   function handlePick(matchId: string, round: Round, teamCode: string | null) {
-    if (locked) return;
+    if (locked || lockedSet.has(round)) return;
     setErrorByMatch((prev) => {
       const next = { ...prev };
       delete next[matchId];
@@ -181,7 +185,8 @@ export function BracketPicker({
                           pick={picks[m.id]}
                           pending={pendingMatchId === m.id}
                           error={errorByMatch[m.id]}
-                          locked={locked}
+                          locked={locked || lockedSet.has(m.round)}
+                          lockedByPrediction={lockedSet.has(m.round)}
                           onPick={(code) => handlePick(m.id, m.round, code)}
                         />
                       </div>
@@ -243,6 +248,7 @@ function MatchCell({
   pending,
   error,
   locked,
+  lockedByPrediction = false,
   onPick,
 }: {
   match: ResolvedMatch;
@@ -250,6 +256,7 @@ function MatchCell({
   pending: boolean;
   error?: string;
   locked: boolean;
+  lockedByPrediction?: boolean;
   onPick: (code: string | null) => void;
 }) {
   const leftPicked = pick === match.left.code && pick !== null;
@@ -259,13 +266,22 @@ function MatchCell({
 
   return (
     <div className="w-full">
-      <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden text-xs sm:text-[13px]">
+      <div
+        className={cn(
+          "rounded-[var(--radius-sm)] border bg-[var(--color-surface)] overflow-hidden text-xs sm:text-[13px]",
+          lockedByPrediction
+            ? "border-[var(--color-info)]/40 bg-[var(--color-info)]/4"
+            : "border-[var(--color-border)]",
+        )}
+        title={lockedByPrediction ? "Definido por tu pronóstico de marcador" : undefined}
+      >
         <TeamSlot
           label={match.left.label}
           selected={leftPicked}
           disabled={leftDisabled}
           onClick={() => onPick(leftPicked ? null : match.left.code ?? null)}
           pending={pending && leftPicked}
+          lockedByPrediction={lockedByPrediction}
         />
         <div className="border-t border-[var(--color-border)]" />
         <TeamSlot
@@ -274,6 +290,7 @@ function MatchCell({
           disabled={rightDisabled}
           onClick={() => onPick(rightPicked ? null : match.right.code ?? null)}
           pending={pending && rightPicked}
+          lockedByPrediction={lockedByPrediction}
         />
       </div>
       {error && (
@@ -291,12 +308,14 @@ function TeamSlot({
   disabled,
   onClick,
   pending,
+  lockedByPrediction = false,
 }: {
   label: string;
   selected: boolean;
   disabled: boolean;
   onClick: () => void;
   pending: boolean;
+  lockedByPrediction?: boolean;
 }) {
   return (
     <button
@@ -306,10 +325,14 @@ function TeamSlot({
       className={cn(
         "w-full px-2 sm:px-3 py-2 sm:py-2.5 flex items-center justify-between gap-2",
         "transition-colors text-left",
-        "disabled:opacity-40 disabled:cursor-not-allowed",
+        "disabled:cursor-not-allowed",
         selected
-          ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-          : "bg-transparent text-[var(--color-text)] hover:bg-[var(--color-surface-2)]",
+          ? lockedByPrediction
+            ? "bg-[var(--color-info)] text-[var(--color-info-fg)]"
+            : "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+          : lockedByPrediction
+            ? "bg-transparent text-[var(--color-text-muted)]"
+            : "bg-transparent text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-40",
       )}
     >
       <span className="truncate font-medium">{label}</span>
