@@ -29,6 +29,7 @@ const PRIMARY_LINKS = [
 
 const SECONDARY_LINKS = [
   { href: "/estadisticas", label: "Estadísticas", icon: ChartLine },
+  { href: "/pronosticos-publicos", label: "Públicos", icon: User },
   { href: "/reglas", label: "Reglas", icon: BookOpen },
 ] as const;
 
