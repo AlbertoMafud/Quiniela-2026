@@ -179,7 +179,23 @@ function ResultRow({ match }: { match: ResultMatch }) {
         <StatusIndicator status={status} pending={pending} />
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      {/* Mobile: cada equipo + score en su propia fila. Desktop: horizontal. */}
+      <div className="sm:hidden space-y-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium truncate flex-1">
+            {match.home.flag_emoji ?? "🏳️"} {match.home.name}
+          </span>
+          <ScoreInput value={home} onChange={handleHome} ariaLabel={`Marcador de ${match.home.name}`} />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium truncate flex-1">
+            {match.away.flag_emoji ?? "🏳️"} {match.away.name}
+          </span>
+          <ScoreInput value={away} onChange={handleAway} ariaLabel={`Marcador de ${match.away.name}`} />
+        </div>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-3">
         <div className="flex-1 min-w-0 text-right">
           <span className="text-sm font-medium truncate">
             {match.home.flag_emoji ?? "🏳️"} {match.home.name}

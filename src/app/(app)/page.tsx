@@ -235,20 +235,50 @@ export default async function DashboardPage() {
                 const stageLabel = m.stage === "group"
                   ? `Grupo ${m.group_letter ?? ""}`
                   : ROUND_LABELS[m.stage as keyof typeof ROUND_LABELS] ?? m.stage;
+                const homeWin = (m.home_score ?? 0) > (m.away_score ?? 0);
+                const awayWin = (m.home_score ?? 0) < (m.away_score ?? 0);
                 return (
-                  <li key={m.id} className="flex items-center gap-3 py-2 px-3 rounded-[var(--radius-sm)] bg-[var(--color-surface-2)]">
-                    <span className="text-xs text-[var(--color-text-subtle)] w-20 shrink-0 hidden sm:inline">
-                      {stageLabel}
-                    </span>
-                    <span className="flex-1 min-w-0 text-right text-sm font-medium truncate">
-                      {home?.flag_emoji ?? "🏳️"} {home?.name ?? "?"}
-                    </span>
-                    <span className="shrink-0 inline-flex items-center px-3 py-1 rounded-full bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-sm font-bold tabular-nums">
-                      {m.home_score} <span className="mx-1 opacity-50">-</span> {m.away_score}
-                    </span>
-                    <span className="flex-1 min-w-0 text-left text-sm font-medium truncate">
-                      {away?.name ?? "?"} {away?.flag_emoji ?? "🏳️"}
-                    </span>
+                  <li key={m.id} className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] overflow-hidden">
+                    {/* Mobile layout vertical */}
+                    <div className="sm:hidden p-3">
+                      <p className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-text-subtle)] mb-2">
+                        {stageLabel}
+                      </p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className={`text-sm flex-1 truncate ${homeWin ? "font-semibold" : "font-medium opacity-80"}`}>
+                            {home?.flag_emoji ?? "🏳️"} {home?.name ?? "?"}
+                          </span>
+                          <span className={`text-base tabular-nums shrink-0 ${homeWin ? "font-bold text-[var(--color-primary)]" : "font-medium"}`}>
+                            {m.home_score}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className={`text-sm flex-1 truncate ${awayWin ? "font-semibold" : "font-medium opacity-80"}`}>
+                            {away?.flag_emoji ?? "🏳️"} {away?.name ?? "?"}
+                          </span>
+                          <span className={`text-base tabular-nums shrink-0 ${awayWin ? "font-bold text-[var(--color-primary)]" : "font-medium"}`}>
+                            {m.away_score}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desktop layout horizontal */}
+                    <div className="hidden sm:flex items-center gap-3 py-2 px-3">
+                      <span className="text-xs text-[var(--color-text-subtle)] w-20 shrink-0">
+                        {stageLabel}
+                      </span>
+                      <span className="flex-1 min-w-0 text-right text-sm font-medium truncate">
+                        {home?.flag_emoji ?? "🏳️"} {home?.name ?? "?"}
+                      </span>
+                      <span className="shrink-0 inline-flex items-center px-3 py-1 rounded-full bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-sm font-bold tabular-nums">
+                        {m.home_score} <span className="mx-1 opacity-50">-</span> {m.away_score}
+                      </span>
+                      <span className="flex-1 min-w-0 text-left text-sm font-medium truncate">
+                        {away?.name ?? "?"} {away?.flag_emoji ?? "🏳️"}
+                      </span>
+                    </div>
                   </li>
                 );
               })}

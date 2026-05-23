@@ -100,9 +100,42 @@ export function MatchPredictionCard({
         <StatusBadge status={status} locked={locked} />
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      {/* Mobile: vertical (home arriba, marcadores en línea, away abajo).
+          Desktop: horizontal (home | marcadores | away). */}
+      <div className="sm:hidden space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-medium text-[var(--color-text)] truncate text-sm flex-1">
+            <span className="mr-1.5" aria-hidden>
+              {home.flag_emoji ?? "🏳️"}
+            </span>
+            {home.name}
+          </p>
+          <ScoreInput
+            value={homeScore}
+            onChange={handleHomeChange}
+            disabled={locked}
+            ariaLabel={`Marcador de ${home.name}`}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-medium text-[var(--color-text)] truncate text-sm flex-1">
+            <span className="mr-1.5" aria-hidden>
+              {away.flag_emoji ?? "🏳️"}
+            </span>
+            {away.name}
+          </p>
+          <ScoreInput
+            value={awayScore}
+            onChange={handleAwayChange}
+            disabled={locked}
+            ariaLabel={`Marcador de ${away.name}`}
+          />
+        </div>
+      </div>
+
+      <div className="hidden sm:flex items-center gap-4">
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-[var(--color-text)] truncate text-sm sm:text-base">
+          <p className="font-medium text-[var(--color-text)] truncate text-base">
             <span className="mr-2" aria-hidden>
               {home.flag_emoji ?? "🏳️"}
             </span>
@@ -110,7 +143,7 @@ export function MatchPredictionCard({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <ScoreInput
             value={homeScore}
             onChange={handleHomeChange}
@@ -127,7 +160,7 @@ export function MatchPredictionCard({
         </div>
 
         <div className="flex-1 min-w-0 text-right">
-          <p className="font-medium text-[var(--color-text)] truncate text-sm sm:text-base">
+          <p className="font-medium text-[var(--color-text)] truncate text-base">
             {away.name}
             <span className="ml-2" aria-hidden>
               {away.flag_emoji ?? "🏳️"}
