@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Trophy } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -35,6 +35,20 @@ interface BracketPickerProps {
 
 const ROUNDS: Round[] = ["r32", "r16", "qf", "sf", "final"];
 
+// Cada ronda especifica cuántas filas del grid ocupa cada match (en un grid de 16 filas).
+// R32: 16 matches, 1 fila cada uno (1-16)
+// R16: 8 matches, 2 filas cada uno (1-2, 3-4, ..., 15-16)
+// QF: 4 matches, 4 filas cada uno
+// SF: 2 matches, 8 filas cada uno
+// Final: 1 match, 16 filas
+const ROWS_PER_MATCH: Record<Round, number> = {
+  r32: 1,
+  r16: 2,
+  qf: 4,
+  sf: 8,
+  final: 16,
+};
+
 export function BracketPicker({
   matches,
   locked,
@@ -42,7 +56,6 @@ export function BracketPicker({
   saveAction,
   description,
 }: BracketPickerProps) {
-  const [activeRound, setActiveRound] = useState<Round>("r32");
   const [picks, setPicks] = useState<Record<string, string | null>>(() => {
     const init: Record<string, string | null> = {};
     for (const m of matches) init[m.id] = m.pick;
@@ -105,38 +118,107 @@ export function BracketPicker({
     });
   }
 
-  const current = matchesByRound[activeRound];
+  const champion = picks["final_m1"];
 
   return (
     <div className="space-y-4">
-      <RoundTabs
-        active={activeRound}
-        onChange={setActiveRound}
-        progress={progressByRound}
-      />
-
       <Card>
         <CardHeader>
-          <CardTitle>{ROUND_LABELS[activeRound]}</CardTitle>
+          <CardTitle className="flex items-center justify-between gap-3 flex-wrap">
+            <span>Cuadro de eliminatorias</span>
+            <ProgressSummary progress={progressByRound} />
+          </CardTitle>
           <CardDescription>
             {description ??
-              "Selecciona el ganador de cada partido. Avanzan automáticamente."}
+              "Selecciona el ganador de cada partido. Los ganadores avanzan a la siguiente ronda automáticamente."}
+            {" "}En mobile arrastra horizontal para ver todo el cuadro.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {current.map((m) => (
-            <PickRow
-              key={m.id}
-              match={m}
-              pick={picks[m.id]}
-              pending={pendingMatchId === m.id}
-              error={errorByMatch[m.id]}
-              locked={locked}
-              onPick={(code) => handlePick(m.id, m.round, code)}
-            />
-          ))}
+        <CardContent>
+          <div className="overflow-x-auto -mx-6 px-6 pb-2">
+            <div
+              className="grid gap-x-3 sm:gap-x-4 min-w-[1100px]"
+              style={{
+                gridTemplateColumns: "repeat(5, minmax(180px, 1fr))",
+                gridTemplateRows: "repeat(16, minmax(60px, auto))",
+              }}
+            >
+              {ROUNDS.map((round, colIdx) => {
+                const rounds = matchesByRound[round];
+                const rowsPer = ROWS_PER_MATCH[round];
+                return (
+                  <div
+                    key={round}
+                    className="contents"
+                    aria-label={`Columna ${ROUND_LABELS[round]}`}
+                  >
+                    <div
+                      style={{
+                        gridColumn: colIdx + 1,
+                        gridRow: "1 / -1",
+                      }}
+                      className="hidden"
+                    />
+                    <div
+                      className="text-xs uppercase tracking-wider text-[var(--color-text-muted)] font-medium text-center pb-2 sticky top-0 bg-[var(--color-surface)] z-10"
+                      style={{
+                        gridColumn: colIdx + 1,
+                        gridRow: "1",
+                        height: "auto",
+                      }}
+                    >
+                      {ROUND_LABELS[round]}
+                    </div>
+                    {rounds.map((m, idx) => {
+                      const startRow = idx * rowsPer + 1;
+                      const endRow = startRow + rowsPer;
+                      return (
+                        <div
+                          key={m.id}
+                          style={{
+                            gridColumn: colIdx + 1,
+                            gridRow: `${startRow} / ${endRow}`,
+                          }}
+                          className="flex items-center justify-center"
+                        >
+                          <MatchCell
+                            match={m}
+                            pick={picks[m.id]}
+                            pending={pendingMatchId === m.id}
+                            error={errorByMatch[m.id]}
+                            locked={locked}
+                            onPick={(code) => handlePick(m.id, m.round, code)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      {champion && (
+        <Card className="bg-gradient-to-r from-[var(--color-gold)]/10 to-transparent border-[var(--color-gold)]/30">
+          <CardContent className="flex items-center gap-3 py-4">
+            <Trophy className="h-6 w-6 text-[var(--color-gold)]" />
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
+                Tu campeón
+              </p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-semibold">
+                {matches.find((m) => m.id === "final_m1" &&
+                  (m.left.code === champion || m.right.code === champion))
+                  ?.left.code === champion
+                  ? matches.find((m) => m.id === "final_m1")?.left.label
+                  : matches.find((m) => m.id === "final_m1")?.right.label}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {locked && lockReason && (
         <p className="text-sm text-[var(--color-text-muted)] text-center">
@@ -147,57 +229,21 @@ export function BracketPicker({
   );
 }
 
-function RoundTabs({
-  active,
-  onChange,
+function ProgressSummary({
   progress,
 }: {
-  active: Round;
-  onChange: (r: Round) => void;
   progress: Record<Round, { done: number; total: number }>;
 }) {
+  const total = ROUNDS.reduce((acc, r) => acc + progress[r].total, 0);
+  const done = ROUNDS.reduce((acc, r) => acc + progress[r].done, 0);
   return (
-    <div className="sticky top-0 md:top-16 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 py-3 bg-[var(--color-bg)]/95 backdrop-blur-xl">
-      <div className="flex gap-2 overflow-x-auto scrollbar-none">
-        {ROUNDS.map((r) => {
-          const isActive = r === active;
-          const { done, total } = progress[r];
-          const complete = total > 0 && done === total;
-          return (
-            <button
-              key={r}
-              type="button"
-              onClick={() => onChange(r)}
-              className={cn(
-                "shrink-0 h-11 px-4 rounded-full text-sm font-medium",
-                "inline-flex items-center gap-2 transition-all",
-                isActive
-                  ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)]"
-                  : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:bg-[var(--color-border)]",
-              )}
-            >
-              {ROUND_LABELS[r]}
-              <span
-                className={cn(
-                  "inline-flex items-center justify-center text-xs h-5 min-w-5 px-1.5 rounded-full tabular-nums",
-                  isActive
-                    ? "bg-white/20 text-[var(--color-primary-fg)]"
-                    : complete
-                      ? "bg-[var(--color-success)]/15 text-[var(--color-success)]"
-                      : "bg-[var(--color-bg)] text-[var(--color-text-subtle)]",
-                )}
-              >
-                {done}/{total}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <span className="text-sm font-normal text-[var(--color-text-muted)] tabular-nums">
+      {done} / {total}
+    </span>
   );
 }
 
-function PickRow({
+function MatchCell({
   match,
   pick,
   pending,
@@ -212,54 +258,51 @@ function PickRow({
   locked: boolean;
   onPick: (code: string | null) => void;
 }) {
-  const leftPicked = pick === match.left.code;
-  const rightPicked = pick === match.right.code;
+  const leftPicked = pick === match.left.code && pick !== null;
+  const rightPicked = pick === match.right.code && pick !== null;
   const leftDisabled = !match.left.code || locked;
   const rightDisabled = !match.right.code || locked;
 
   return (
-    <div className="p-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="flex items-center gap-2">
-        <TeamButton
+    <div className="w-full">
+      <div className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden text-xs sm:text-[13px]">
+        <TeamSlot
           label={match.left.label}
           selected={leftPicked}
           disabled={leftDisabled}
-          onClick={() =>
-            onPick(leftPicked ? null : match.left.code ?? null)
-          }
+          onClick={() => onPick(leftPicked ? null : match.left.code ?? null)}
+          pending={pending && leftPicked}
         />
-        <span className="text-xs text-[var(--color-text-subtle)] px-1">vs</span>
-        <TeamButton
+        <div className="border-t border-[var(--color-border)]" />
+        <TeamSlot
           label={match.right.label}
           selected={rightPicked}
           disabled={rightDisabled}
-          onClick={() =>
-            onPick(rightPicked ? null : match.right.code ?? null)
-          }
+          onClick={() => onPick(rightPicked ? null : match.right.code ?? null)}
+          pending={pending && rightPicked}
         />
-        <span className="w-5 shrink-0 flex justify-center">
-          {pending ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
-          ) : pick ? (
-            <Check className="h-4 w-4 text-[var(--color-success)]" />
-          ) : null}
-        </span>
       </div>
-      {error && <p className="mt-2 text-xs text-[var(--color-danger)]">{error}</p>}
+      {error && (
+        <p className="mt-1 text-[10px] text-[var(--color-danger)] truncate">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
 
-function TeamButton({
+function TeamSlot({
   label,
   selected,
   disabled,
   onClick,
+  pending,
 }: {
   label: string;
   selected: boolean;
   disabled: boolean;
   onClick: () => void;
+  pending: boolean;
 }) {
   return (
     <button
@@ -267,15 +310,22 @@ function TeamButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex-1 min-w-0 h-11 px-3 rounded-[var(--radius-sm)] text-sm font-medium",
-        "transition-all truncate text-left",
+        "w-full px-2 sm:px-3 py-2 sm:py-2.5 flex items-center justify-between gap-2",
+        "transition-colors text-left",
         "disabled:opacity-40 disabled:cursor-not-allowed",
         selected
-          ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] shadow-[var(--shadow-sm)]"
-          : "bg-[var(--color-surface-2)] text-[var(--color-text)] hover:bg-[var(--color-border)]",
+          ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+          : "bg-transparent text-[var(--color-text)] hover:bg-[var(--color-surface-2)]",
       )}
     >
-      {label}
+      <span className="truncate font-medium">{label}</span>
+      <span className="shrink-0 w-4 flex justify-end">
+        {pending ? (
+          <Loader2 className="h-3 w-3 animate-spin opacity-70" />
+        ) : selected ? (
+          <Check className="h-3 w-3" />
+        ) : null}
+      </span>
     </button>
   );
 }
