@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { BottomNav, TopNav } from "@/components/app/navigation";
+import { RulesFab } from "@/components/app/rules-fab";
+import { RulesContent } from "@/components/app/rules-content";
 
 export default async function AppLayout({
   children,
@@ -29,6 +31,9 @@ export default async function AppLayout({
       <main className="flex-1 w-full mx-auto max-w-[var(--container-app)] px-4 sm:px-6 pt-4 sm:pt-6 pb-24 md:pb-8">
         {children}
       </main>
+      <RulesFab>
+        <RulesContent compact />
+      </RulesFab>
       <BottomNav isAdmin={player.is_admin} />
       <noscript>
         <div className="fixed bottom-0 inset-x-0 bg-[var(--color-warning)] text-black text-sm p-2 text-center">
