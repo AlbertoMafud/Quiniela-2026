@@ -47,10 +47,10 @@ export function ScoringForm({ initial }: { initial: Params }) {
         <legend className="text-sm font-medium text-[var(--color-text)]">
           Bonus del cuadro desde el inicio
         </legend>
-        <FieldRow name="early_r32_bonus" label="Equipo llega a R32" defaultValue={initial.early_r32_bonus} />
-        <FieldRow name="early_r16_bonus" label="Equipo llega a R16" defaultValue={initial.early_r16_bonus} />
+        <FieldRow name="early_r32_bonus" label="Equipo llega a 16avos" defaultValue={initial.early_r32_bonus} />
+        <FieldRow name="early_r16_bonus" label="Equipo llega a octavos" defaultValue={initial.early_r16_bonus} />
         <FieldRow name="early_qf_bonus" label="Equipo llega a cuartos" defaultValue={initial.early_qf_bonus} />
-        <FieldRow name="early_sf_bonus" label="Equipo llega a semis" defaultValue={initial.early_sf_bonus} />
+        <FieldRow name="early_sf_bonus" label="Equipo llega a semifinales" defaultValue={initial.early_sf_bonus} />
         <FieldRow name="early_final_bonus" label="Equipo llega a la final" defaultValue={initial.early_final_bonus} />
       </fieldset>
 
