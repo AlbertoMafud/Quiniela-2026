@@ -322,7 +322,7 @@ function DeadlineCard({ deadline }: { deadline: DeadlineRow | null | undefined }
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Clock className="h-4 w-4 text-[var(--color-accent)]" />
-          Próximo deadline
+          Próximo cierre
         </CardTitle>
       </CardHeader>
       <CardContent>

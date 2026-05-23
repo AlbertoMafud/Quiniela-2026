@@ -106,7 +106,7 @@ export default async function TercerosPage() {
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
           Escoge 8 de los 12 terceros lugares que (según tus pronósticos) pasarían a R32.
           {deadlineDate &&
-            ` Deadline: ${formatDateMx(deadlineDate.toISOString())}.`}
+            ` Cierre: ${formatDateMx(deadlineDate.toISOString())}.`}
         </p>
       </header>
 

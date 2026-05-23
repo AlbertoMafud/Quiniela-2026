@@ -1,4 +1,4 @@
-import { Trophy, Medal, Award } from "lucide-react";
+import { Trophy, Medal, Award, Globe, Sparkles, Goal } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import {
@@ -9,18 +9,46 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { computeStandings, bestThirds, type MatchScore } from "@/lib/standings";
+import {
+  computeTotals,
+  breakdownByMatch,
+  type MatchData,
+  type PredictionData,
+  type PlayerData,
+  type ThirdPickData,
+} from "@/lib/ranking-calculator";
+import type { ScoringParams } from "@/lib/scoring";
+import {
+  GroupBreakdown,
+  type StandingRow as UIStandingRow,
+  type MatchRow as UIMatchRow,
+  type PickRow as UIPickRow,
+} from "./_components/group-breakdown";
 
-export const metadata = {
-  title: "Ranking",
-};
+export const metadata = { title: "Ranking" };
 
-interface ScoreRow {
-  player_id: string;
-  player_name: string;
-  total_points: number;
+interface MatchDB {
+  id: string;
+  stage: string;
+  group_letter: string | null;
+  kickoff_at: string;
+  home_team_code: string | null;
+  away_team_code: string | null;
+  home_score: number | null;
+  away_score: number | null;
 }
+interface PlayerDB { id: string; name: string }
+interface PredDB {
+  match_id: string;
+  player_id: string;
+  home_score: number;
+  away_score: number;
+}
+interface TeamDB { code: string; name: string; group_letter: string; flag_emoji: string | null }
+interface ThirdDB { player_id: string; team_code: string }
 
-const PODIUM_ICONS = [
+const PODIUM = [
   { Icon: Trophy, color: "var(--color-gold)" },
   { Icon: Medal, color: "var(--color-text-subtle)" },
   { Icon: Award, color: "#B87333" },
@@ -32,14 +60,110 @@ export default async function RankingPage() {
 
   const supabase = adminClient();
 
-  const { data: rows } = await supabase
-    .from("player_scores")
-    .select("player_id, player_name, total_points")
-    .order("total_points", { ascending: false });
+  const [
+    { data: players },
+    { data: matches },
+    { data: predictions },
+    { data: teams },
+    { data: thirdPicks },
+    { data: scoringRow },
+  ] = await Promise.all([
+    supabase.from("players").select("id, name").order("name"),
+    supabase
+      .from("matches")
+      .select("id, stage, group_letter, kickoff_at, home_team_code, away_team_code, home_score, away_score")
+      .order("kickoff_at", { ascending: true }),
+    supabase.from("predictions").select("match_id, player_id, home_score, away_score"),
+    supabase.from("teams").select("code, name, group_letter, flag_emoji"),
+    supabase.from("third_picks").select("player_id, team_code"),
+    supabase.from("scoring_params").select("*").eq("id", 1).maybeSingle<ScoringParams>(),
+  ]);
 
-  const scores = ((rows ?? []) as ScoreRow[]);
-  const me = scores.find((r) => r.player_id === session.playerId);
-  const myRank = me ? scores.findIndex((r) => r.player_id === me.player_id) + 1 : null;
+  const playerList = (players ?? []) as PlayerDB[];
+  const matchList = (matches ?? []) as MatchDB[];
+  const predList = (predictions ?? []) as PredDB[];
+  const teamList = (teams ?? []) as TeamDB[];
+  const thirdList = (thirdPicks ?? []) as ThirdDB[];
+
+  const params: ScoringParams = scoringRow ?? {
+    id: 1,
+    exact_score_pts: 3,
+    correct_winner_pts: 2,
+    early_r32_bonus: 1,
+    early_r16_bonus: 2,
+    early_qf_bonus: 3,
+    early_sf_bonus: 4,
+    early_final_bonus: 5,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Calcular standings reales (basados en resultados oficiales)
+  const finishedGroupMatches: MatchScore[] = [];
+  for (const m of matchList) {
+    if (
+      m.stage === "group" &&
+      m.home_team_code &&
+      m.away_team_code &&
+      m.home_score !== null &&
+      m.away_score !== null
+    ) {
+      finishedGroupMatches.push({
+        home_team_code: m.home_team_code,
+        away_team_code: m.away_team_code,
+        home_score: m.home_score,
+        away_score: m.away_score,
+      });
+    }
+  }
+  const teamLite = teamList.map((t) => ({
+    code: t.code,
+    name: t.name,
+    group_letter: t.group_letter,
+  }));
+  const standings = computeStandings(teamLite, finishedGroupMatches);
+  const actualBestThirds = bestThirds(standings).map((s) => s.team_code);
+
+  // Calcular totales por jugador
+  const matchDataForCalc: MatchData[] = matchList.map((m) => ({
+    id: m.id,
+    stage: m.stage,
+    group_letter: m.group_letter,
+    home_score: m.home_score,
+    away_score: m.away_score,
+  }));
+  const predDataForCalc: PredictionData[] = predList.map((p) => ({
+    match_id: p.match_id,
+    player_id: p.player_id,
+    home_score: p.home_score,
+    away_score: p.away_score,
+  }));
+  const playerDataForCalc: PlayerData[] = playerList.map((p) => ({
+    id: p.id,
+    name: p.name,
+  }));
+  const thirdDataForCalc: ThirdPickData[] = thirdList.map((t) => ({
+    player_id: t.player_id,
+    team_code: t.team_code,
+  }));
+
+  const totals = computeTotals(
+    playerDataForCalc,
+    matchDataForCalc,
+    predDataForCalc,
+    actualBestThirds,
+    thirdDataForCalc,
+    params,
+  );
+
+  // Breakdown por match (incluye nombre de jugador en cada pick)
+  const playersById = new Map(playerList.map((p) => [p.id, p]));
+  const teamsByCode = new Map(teamList.map((t) => [t.code, t]));
+  const matchPredsMap = breakdownByMatch(matchDataForCalc, predDataForCalc, params);
+
+  // Construir grupos con sus standings y matches
+  const groupLetters = Array.from(
+    new Set(teamList.map((t) => t.group_letter)),
+  ).sort();
 
   return (
     <div className="space-y-5">
@@ -48,68 +172,202 @@ export default async function RankingPage() {
           Ranking
         </h1>
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
-          {scores.length === 0
-            ? "Aún no hay jugadores."
-            : `${scores.length} jugador${scores.length === 1 ? "" : "es"} en la quiniela.`}
-          {myRank && me && ` Tú vas en el lugar #${myRank} con ${me.total_points} pts.`}
+          {totals.length} jugador{totals.length === 1 ? "" : "es"} compitiendo. Toca un grupo para ver el desglose por partido.
         </p>
       </header>
 
-      {scores.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Tabla general</CardTitle>
-            <CardDescription>
-              Puntos por aciertos en marcadores. Bonus de bracket y terceros se suman a partir de la fase de eliminatorias.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-1">
-              {scores.map((r, idx) => {
-                const podium = idx < 3 ? PODIUM_ICONS[idx] : null;
-                const isMe = r.player_id === session.playerId;
+      <SummaryTable totals={totals} mePlayerId={session.playerId} />
+
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-base font-[family-name:var(--font-display)] font-semibold text-[var(--color-text)]">
+          <Globe className="h-5 w-5 text-[var(--color-info)]" />
+          Fase de grupos
+        </h2>
+
+        {groupLetters.map((letter, idx) => {
+          // Standings de este grupo
+          const groupStandings: UIStandingRow[] = standings
+            .filter((s) => s.group_letter === letter)
+            .map((s) => {
+              const t = teamsByCode.get(s.team_code);
+              return {
+                team_code: s.team_code,
+                team_name: s.team_name,
+                flag_emoji: t?.flag_emoji ?? null,
+                w: s.w,
+                d: s.d,
+                l: s.l,
+                gf: s.gf,
+                ga: s.ga,
+                gd: s.gd,
+                pts: s.pts,
+                position: s.position,
+              };
+            });
+
+          // Matches de este grupo
+          const groupMatches = matchList
+            .filter((m) => m.stage === "group" && m.group_letter === letter)
+            .sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+          const uiMatches: UIMatchRow[] = groupMatches.map((m) => {
+            const home = teamsByCode.get(m.home_team_code ?? "");
+            const away = teamsByCode.get(m.away_team_code ?? "");
+            return {
+              id: m.id,
+              kickoff_at: m.kickoff_at,
+              home_name: home?.name ?? m.home_team_code ?? "?",
+              home_emoji: home?.flag_emoji ?? null,
+              away_name: away?.name ?? m.away_team_code ?? "?",
+              away_emoji: away?.flag_emoji ?? null,
+              home_score: m.home_score,
+              away_score: m.away_score,
+            };
+          });
+
+          // Picks por match
+          const picksByMatch: Record<string, UIPickRow[]> = {};
+          for (const m of groupMatches) {
+            const list = matchPredsMap.get(m.id) ?? [];
+            picksByMatch[m.id] = list
+              .map((row) => ({
+                player_id: row.player_id,
+                player_name: playersById.get(row.player_id)?.name ?? "?",
+                pred_home: row.pred_home,
+                pred_away: row.pred_away,
+                points: row.points,
+                exact: row.exact,
+                winner: row.winner,
+              }))
+              .sort((a, b) => b.points - a.points);
+          }
+
+          const playedCount = groupMatches.filter(
+            (m) => m.home_score !== null && m.away_score !== null,
+          ).length;
+
+          return (
+            <GroupBreakdown
+              key={letter}
+              letter={letter}
+              standings={groupStandings}
+              matches={uiMatches}
+              picksByMatch={picksByMatch}
+              playedCount={playedCount}
+              totalCount={groupMatches.length}
+              defaultOpen={idx === 0}
+            />
+          );
+        })}
+      </section>
+    </div>
+  );
+}
+
+function SummaryTable({
+  totals,
+  mePlayerId,
+}: {
+  totals: Array<{
+    player_id: string;
+    player_name: string;
+    group_points: number;
+    thirds_points: number;
+    bracket_points: number;
+    total: number;
+    group_predictions_made: number;
+    group_matches_played: number;
+  }>;
+  mePlayerId: string;
+}) {
+  if (totals.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-sm text-[var(--color-text-muted)]">
+          Aún no hay jugadores con puntos.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Tabla general</CardTitle>
+        <CardDescription>
+          Desglose por categoría. Toca cada grupo abajo para ver picks partido por partido.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="px-0 sm:px-6">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
+                <th className="text-left py-2 px-4 sm:px-2 font-medium w-10">#</th>
+                <th className="text-left py-2 px-2 font-medium">Jugador</th>
+                <th className="text-center py-2 px-2 font-medium">
+                  <Globe className="inline h-3.5 w-3.5 text-[var(--color-info)] mr-1" />
+                  Grupos
+                </th>
+                <th className="text-center py-2 px-2 font-medium">
+                  <Sparkles className="inline h-3.5 w-3.5 text-[var(--color-warning)] mr-1" />
+                  Terceros
+                </th>
+                <th className="text-center py-2 px-2 font-medium">
+                  <Goal className="inline h-3.5 w-3.5 text-[var(--color-accent)] mr-1" />
+                  Bracket
+                </th>
+                <th className="text-right py-2 px-4 sm:px-2 font-semibold text-[var(--color-success)]">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {totals.map((row, idx) => {
+                const podium = idx < 3 ? PODIUM[idx] : null;
+                const isMe = row.player_id === mePlayerId;
                 return (
-                  <li
-                    key={r.player_id}
+                  <tr
+                    key={row.player_id}
                     className={cn(
-                      "flex items-center justify-between gap-3 py-2.5 px-3 rounded-[var(--radius-md)]",
-                      isMe && "bg-[var(--color-primary)]/8 ring-1 ring-[var(--color-primary)]/25",
+                      "border-t border-[var(--color-border)]",
+                      isMe && "bg-[var(--color-primary)]/8",
                     )}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="tabular-nums w-6 text-right text-sm font-medium text-[var(--color-text-muted)]">
-                        {idx + 1}
-                      </span>
-                      {podium ? (
-                        <podium.Icon
-                          className="h-5 w-5 shrink-0"
-                          style={{ color: podium.color }}
-                        />
-                      ) : (
-                        <span className="h-5 w-5 shrink-0" />
-                      )}
-                      <span className={cn("truncate", isMe && "font-semibold")}>
-                        {r.player_name}
-                        {isMe && (
-                          <span className="ml-2 text-xs text-[var(--color-primary)]">
-                            (tú)
-                          </span>
+                    <td className="py-3 px-4 sm:px-2 tabular-nums text-[var(--color-text-muted)] font-medium">
+                      {idx + 1}
+                    </td>
+                    <td className="py-3 px-2">
+                      <span className="inline-flex items-center gap-2">
+                        {podium ? (
+                          <podium.Icon className="h-4 w-4 shrink-0" style={{ color: podium.color }} />
+                        ) : (
+                          <span className="w-4 h-4 shrink-0" />
                         )}
+                        <span className={cn("truncate", isMe && "font-semibold")}>
+                          {row.player_name}
+                          {isMe && (
+                            <span className="ml-1.5 text-xs text-[var(--color-primary)]">(tú)</span>
+                          )}
+                        </span>
                       </span>
-                    </div>
-                    <span className="tabular-nums font-semibold text-[var(--color-text)]">
-                      {r.total_points}
-                      <span className="ml-1 text-xs font-normal text-[var(--color-text-muted)]">
-                        pts
-                      </span>
-                    </span>
-                  </li>
+                    </td>
+                    <td className="text-center tabular-nums py-3 px-2 text-[var(--color-info)] font-medium">
+                      {row.group_points}
+                    </td>
+                    <td className="text-center tabular-nums py-3 px-2 text-[var(--color-warning)] font-medium">
+                      {row.thirds_points}
+                    </td>
+                    <td className="text-center tabular-nums py-3 px-2 text-[var(--color-accent)] font-medium">
+                      {row.bracket_points}
+                    </td>
+                    <td className="text-right tabular-nums py-3 px-4 sm:px-2 font-bold text-[var(--color-success)] text-base">
+                      {row.total}
+                    </td>
+                  </tr>
                 );
               })}
-            </ol>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

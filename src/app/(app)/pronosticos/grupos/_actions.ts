@@ -51,7 +51,7 @@ export async function savePredictionAction(input: {
 
   const now = new Date();
   if (deadline && new Date(deadline.deadline_at) <= now) {
-    return { ok: false, error: "Deadline pasado: no puedes editar este pronóstico." };
+    return { ok: false, error: "Cierre pasado: no puedes editar este pronóstico." };
   }
 
   // Adicional: si el partido ya empezó, tampoco editar.

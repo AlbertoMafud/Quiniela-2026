@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { DeadlinesForm } from "./_components/deadlines-form";
 
-export const metadata = { title: "Deadlines · Admin" };
+export const metadata = { title: "Cierres · Admin" };
 
 interface DeadlineRow { stage: string; deadline_at: string }
 

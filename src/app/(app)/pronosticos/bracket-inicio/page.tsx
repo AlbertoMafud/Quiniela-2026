@@ -91,7 +91,7 @@ export default async function BracketInicioPage() {
               href="/bracket"
               className="text-[var(--color-primary)] font-medium hover:underline"
             >
-              Ir al bracket post-grupos →
+              Ir al cuadro tras fase de grupos →
             </Link>
           </CardContent>
         </Card>
@@ -154,7 +154,7 @@ export default async function BracketInicioPage() {
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
           Si los equipos que escoges aquí efectivamente llegan a esa ronda, ganas puntos bonus.
           {deadlineDate &&
-            ` Deadline: ${formatDateMx(deadlineDate.toISOString())}.`}
+            ` Cierre: ${formatDateMx(deadlineDate.toISOString())}.`}
         </p>
       </header>
 

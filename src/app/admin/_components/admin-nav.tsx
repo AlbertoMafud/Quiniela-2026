@@ -17,7 +17,7 @@ const LINKS = [
   { href: "/admin", label: "Inicio", icon: LayoutDashboard },
   { href: "/admin/resultados", label: "Resultados", icon: ListChecks },
   { href: "/admin/scoring", label: "Puntos", icon: Sliders },
-  { href: "/admin/deadlines", label: "Deadlines", icon: Calendar },
+  { href: "/admin/deadlines", label: "Cierres", icon: Calendar },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
   { href: "/admin/config", label: "Config", icon: Settings2 },
   { href: "/admin/herramientas", label: "Herramientas", icon: Wrench },

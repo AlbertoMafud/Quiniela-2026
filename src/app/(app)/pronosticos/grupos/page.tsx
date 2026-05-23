@@ -96,7 +96,7 @@ export default async function PronosticosGruposPage() {
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
           {totalDone} de {totalMatches} pronósticos hechos.
           {deadlineDate &&
-            ` Deadline: ${formatDateMx(deadlineDate.toISOString())}.`}
+            ` Cierre: ${formatDateMx(deadlineDate.toISOString())}.`}
         </p>
       </header>
 

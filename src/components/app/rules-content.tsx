@@ -87,7 +87,7 @@ export async function RulesContent({ compact = false }: { compact?: boolean }) {
             de los 12 terceros lugares (uno por grupo).
           </p>
           <p>
-            <strong>3. Bracket post-grupos:</strong> con los equipos reales que pasaron,
+            <strong>3. Cuadro tras fase de grupos:</strong> con los equipos reales que pasaron,
             llenas tu cuadro de eliminatorias indicando solo el ganador de cada llave.
           </p>
           <p>

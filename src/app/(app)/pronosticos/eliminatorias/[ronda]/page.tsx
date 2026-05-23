@@ -91,7 +91,7 @@ export default async function EliminatoriasRondaPage({
           </h1>
           <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
             Mete tus marcadores para los partidos de {label.toLowerCase()}.
-            {deadlineDate && ` Deadline: ${formatDateMx(deadlineDate.toISOString())}.`}
+            {deadlineDate && ` Cierre: ${formatDateMx(deadlineDate.toISOString())}.`}
           </p>
         </div>
         <RoundsSwitcher current={round} />
@@ -140,7 +140,7 @@ export default async function EliminatoriasRondaPage({
                 initialHome={pred?.home_score ?? null}
                 initialAway={pred?.away_score ?? null}
                 locked={locked}
-                lockReason={locked ? "Deadline pasado." : undefined}
+                lockReason={locked ? "Cierre pasado." : undefined}
               />
             );
           })}
