@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { Target, Trophy, BarChart3, BookOpen } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,14 +94,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <DashboardCards
-        items={[
-          { href: "/pronosticos/grupos", title: "Llenar pronósticos", description: "Marcadores de la fase de grupos.", icon: Target },
-          { href: "/ranking", title: "Ver ranking", description: "Cómo va la familia.", icon: BarChart3 },
-          { href: "/bracket", title: "Bracket", description: "Tu cuadro de eliminatorias.", icon: Trophy },
-          { href: "/reglas", title: "Reglas", description: "Puntos y mecánica.", icon: BookOpen },
-        ]}
-      />
+      <DashboardCards />
     </div>
   );
 }

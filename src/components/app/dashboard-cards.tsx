@@ -2,20 +2,47 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
+import { Target, Trophy, BarChart3, BookOpen, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-export interface DashboardItem {
+interface DashboardItem {
   href: string;
   title: string;
   description: string;
   icon: LucideIcon;
 }
 
-export function DashboardCards({ items }: { items: DashboardItem[] }) {
+const ITEMS: DashboardItem[] = [
+  {
+    href: "/pronosticos/grupos",
+    title: "Llenar pronósticos",
+    description: "Marcadores de la fase de grupos.",
+    icon: Target,
+  },
+  {
+    href: "/ranking",
+    title: "Ver ranking",
+    description: "Cómo va la familia.",
+    icon: BarChart3,
+  },
+  {
+    href: "/bracket",
+    title: "Bracket",
+    description: "Tu cuadro de eliminatorias.",
+    icon: Trophy,
+  },
+  {
+    href: "/reglas",
+    title: "Reglas",
+    description: "Puntos y mecánica.",
+    icon: BookOpen,
+  },
+];
+
+export function DashboardCards() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-      {items.map((item, idx) => (
+      {ITEMS.map((item, idx) => (
         <motion.div
           key={item.href}
           initial={{ opacity: 0, y: 12 }}
