@@ -9,6 +9,7 @@ import {
   Calendar,
   Users,
   Settings2,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ const LINKS = [
   { href: "/admin/deadlines", label: "Deadlines", icon: Calendar },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
   { href: "/admin/config", label: "Config", icon: Settings2 },
+  { href: "/admin/herramientas", label: "Herramientas", icon: Wrench },
 ];
 
 export function AdminNav() {

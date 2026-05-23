@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, useTransition } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toggleConfig, type ConfigActionState } from "../_actions";
+import { toggleConfig } from "../_actions";
 
 interface ConfigToggleProps {
-  keyName: string;
+  keyName: "early_bracket_enabled" | "auto_ingest_enabled";
   label: string;
   enabled: boolean;
   disabled?: boolean;
@@ -18,30 +18,46 @@ export function ConfigToggle({
   enabled,
   disabled = false,
 }: ConfigToggleProps) {
-  const [state, formAction, pending] = useActionState<ConfigActionState, FormData>(
-    toggleConfig,
-    {},
-  );
-  const [localEnabled, setLocalEnabled] = useState(enabled);
+  const [optimistic, setOptimistic] = useState(enabled);
+  const [pending, startTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  function handleClick() {
+    if (disabled || pending) return;
+    const next = !optimistic;
+    setOptimistic(next);
+    setErrorMsg(null);
+    setSaved(false);
+
+    startTransition(async () => {
+      const res = await toggleConfig({ key: keyName, enabled: next });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } else {
+        setOptimistic(!next); // revert
+        setErrorMsg(res.error ?? "Error al guardar.");
+      }
+    });
+  }
 
   return (
-    <form action={formAction} className="flex items-center justify-between gap-3">
-      <input type="hidden" name="key" value={keyName} />
-      <input type="hidden" name="enabled" value={(!localEnabled).toString()} />
+    <div className="flex items-center justify-between gap-3">
       <label className="text-sm font-medium text-[var(--color-text)]">
         {label}
       </label>
       <div className="flex items-center gap-2">
         <button
-          type="submit"
+          type="button"
           disabled={disabled || pending}
-          onClick={() => setLocalEnabled((v) => !v)}
-          aria-pressed={localEnabled}
-          aria-label={`${localEnabled ? "Desactivar" : "Activar"} ${label}`}
+          onClick={handleClick}
+          aria-pressed={optimistic}
+          aria-label={`${optimistic ? "Desactivar" : "Activar"} ${label}`}
           className={cn(
             "relative h-7 w-12 rounded-full transition-colors duration-200",
             "disabled:opacity-50 disabled:cursor-not-allowed",
-            localEnabled
+            optimistic
               ? "bg-[var(--color-success)]"
               : "bg-[var(--color-border-strong)]",
           )}
@@ -49,16 +65,20 @@ export function ConfigToggle({
           <span
             className={cn(
               "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-200",
-              localEnabled ? "translate-x-5" : "translate-x-0.5",
+              optimistic ? "translate-x-5" : "translate-x-0.5",
             )}
           />
         </button>
-        {pending && <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-muted)]" />}
-        {state.ok && <Check className="h-4 w-4 text-[var(--color-success)]" />}
-        {state.error && (
-          <span className="text-xs text-[var(--color-danger)]">{state.error}</span>
+        {pending && (
+          <Loader2 className="h-4 w-4 animate-spin text-[var(--color-text-muted)]" />
+        )}
+        {saved && !pending && (
+          <Check className="h-4 w-4 text-[var(--color-success)]" />
+        )}
+        {errorMsg && (
+          <span className="text-xs text-[var(--color-danger)]">{errorMsg}</span>
         )}
       </div>
-    </form>
+    </div>
   );
 }
