@@ -19,10 +19,10 @@ export interface ResultMatch {
 
 const STAGE_LABELS: Record<string, string> = {
   group: "Grupos",
-  r32: "32vos",
+  r32: "16avos",
   r16: "Octavos",
   qf: "Cuartos",
-  sf: "Semis",
+  sf: "Semifinales",
   final: "Final",
 };
 

@@ -131,7 +131,7 @@ export function BracketPicker({
           <CardDescription>
             {description ??
               "Selecciona el ganador de cada partido. Los ganadores avanzan a la siguiente ronda automáticamente."}
-            {" "}En mobile arrastra horizontal para ver todo el cuadro.
+            {" "}En dispositivos móviles arrastra horizontal para ver todo el cuadro.
           </CardDescription>
         </CardHeader>
         <CardContent>

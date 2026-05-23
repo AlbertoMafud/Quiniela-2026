@@ -84,8 +84,8 @@ export default async function EliminatoriasRondaPage({
 
   return (
     <div className="space-y-5">
-      <header className="flex items-start justify-between gap-3">
-        <div>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.25rem)] font-semibold tracking-tight">
             Pronósticos · {label}
           </h1>
@@ -152,15 +152,15 @@ export default async function EliminatoriasRondaPage({
 
 function RoundsSwitcher({ current }: { current: Round }) {
   return (
-    <div className="hidden sm:flex flex-wrap gap-1 shrink-0">
+    <div className="flex gap-1.5 overflow-x-auto scrollbar-none sm:flex-wrap sm:shrink-0 -mx-4 sm:mx-0 px-4 sm:px-0">
       {VALID_ROUNDS.map((r) => (
         <Link
           key={r}
           href={`/pronosticos/eliminatorias/${r}`}
           className={
             r === current
-              ? "px-3 h-8 inline-flex items-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-xs font-medium"
-              : "px-3 h-8 inline-flex items-center rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-muted)] text-xs font-medium hover:bg-[var(--color-border)]"
+              ? "shrink-0 px-3 h-9 inline-flex items-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-sm font-medium shadow-[var(--shadow-sm)]"
+              : "shrink-0 px-3 h-9 inline-flex items-center rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-muted)] text-sm font-medium hover:bg-[var(--color-border)]"
           }
         >
           {ROUND_LABELS[r]}

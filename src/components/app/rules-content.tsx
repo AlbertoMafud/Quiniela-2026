@@ -65,10 +65,10 @@ export async function RulesContent({ compact = false }: { compact?: boolean }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <RuleRow label="Llega a 32vos (R32)" points={p.early_r32_bonus} />
-          <RuleRow label="Llega a 16vos (R16)" points={p.early_r16_bonus} />
-          <RuleRow label="Llega a cuartos (QF)" points={p.early_qf_bonus} />
-          <RuleRow label="Llega a semis (SF)" points={p.early_sf_bonus} />
+          <RuleRow label="Llega a 16avos" points={p.early_r32_bonus} />
+          <RuleRow label="Llega a octavos" points={p.early_r16_bonus} />
+          <RuleRow label="Llega a cuartos" points={p.early_qf_bonus} />
+          <RuleRow label="Llega a semifinales" points={p.early_sf_bonus} />
           <RuleRow label="Llega a la final" points={p.early_final_bonus} />
         </CardContent>
       </Card>

@@ -127,9 +127,9 @@ export const MATCHES_BY_ROUND: Record<Round, BracketMatch[]> = {
 };
 
 export const ROUND_LABELS: Record<Round, string> = {
-  r32: "32vos",
+  r32: "16avos",
   r16: "Octavos",
   qf: "Cuartos",
-  sf: "Semis",
+  sf: "Semifinales",
   final: "Final",
 };
