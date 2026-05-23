@@ -5,35 +5,25 @@ import { usePathname } from "next/navigation";
 import { Target, Sparkles, Trophy, Goal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Link {
+interface NavLink {
   href: string;
   label: string;
   icon: typeof Target;
 }
 
-export function PronosticosSubNav({ earlyEnabled }: { earlyEnabled: boolean }) {
-  const pathname = usePathname();
+const LINKS: NavLink[] = [
+  { href: "/pronosticos/grupos", label: "Grupos", icon: Target },
+  { href: "/pronosticos/terceros", label: "Mejores terceros", icon: Sparkles },
+  { href: "/pronosticos/bracket-inicio", label: "Bracket desde inicio", icon: Trophy },
+  { href: "/pronosticos/eliminatorias/r32", label: "Eliminatorias", icon: Goal },
+];
 
-  const links: Link[] = [
-    { href: "/pronosticos/grupos", label: "Grupos", icon: Target },
-    { href: "/pronosticos/terceros", label: "Mejores terceros", icon: Sparkles },
-  ];
-  if (earlyEnabled) {
-    links.push({
-      href: "/pronosticos/bracket-inicio",
-      label: "Bracket desde inicio",
-      icon: Trophy,
-    });
-  }
-  links.push({
-    href: "/pronosticos/eliminatorias/r32",
-    label: "Eliminatorias",
-    icon: Goal,
-  });
+export function PronosticosSubNav() {
+  const pathname = usePathname();
 
   return (
     <nav className="flex gap-2 overflow-x-auto scrollbar-none -mx-4 sm:-mx-0 px-4 sm:px-0">
-      {links.map(({ href, label, icon: Icon }) => {
+      {LINKS.map(({ href, label, icon: Icon }) => {
         const active =
           href === pathname ||
           (href.startsWith("/pronosticos/eliminatorias") &&

@@ -56,11 +56,12 @@ export async function registerAction(
     return { error: "Ya existe un jugador con ese nombre. Elige otro." };
   }
 
-  // Auto-promote primer jugador a admin para arrancar la quiniela.
+  // Los primeros 2 jugadores son auto-admin (Alberto + Adriana del bootstrap).
+  // Después, admins existentes pueden promover desde /admin/usuarios.
   const { count } = await supabase
     .from("players")
     .select("*", { count: "exact", head: true });
-  const shouldBeAdmin = (count ?? 0) === 0;
+  const shouldBeAdmin = (count ?? 0) < 2;
 
   const pin_hash = await hashPin(pin);
   const { data: player, error } = await supabase
