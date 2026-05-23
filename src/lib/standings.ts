@@ -112,3 +112,19 @@ export function computeStandings(
 export function pickThirds(rows: StandingRow[]): StandingRow[] {
   return rows.filter((r) => r.position === 3);
 }
+
+/**
+ * De los 12 terceros, devuelve los 8 mejores ordenados por
+ * pts → GD → GF → code. FIFA usa una tabla más compleja con
+ * head-to-head y fair play; aquí simplificamos para v1.
+ */
+export function bestThirds(rows: StandingRow[]): StandingRow[] {
+  return pickThirds(rows)
+    .sort((a, b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      if (b.gd !== a.gd) return b.gd - a.gd;
+      if (b.gf !== a.gf) return b.gf - a.gf;
+      return a.team_code.localeCompare(b.team_code);
+    })
+    .slice(0, 8);
+}
