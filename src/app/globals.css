@@ -2,34 +2,52 @@
 @plugin "tailwindcss-animate";
 
 @theme {
-  /* Paleta "Estadio" — verde estadio + dorado + rojo bandera, premium sin saturar */
+  /* Paleta "FIFA United 2026" — verde MX + rojo CA + azul USA, vibrante y colorida */
 
   /* Fonts */
   --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-display: var(--font-inter-tight), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  /* Light mode — fondo cálido off-white con sutil tinte verde-amarillo */
-  --color-bg: oklch(0.985 0.005 110);
+  /* Light mode — papel cálido con tinte cyan muy sutil */
+  --color-bg: oklch(0.98 0.008 220);
+  --color-bg-tint: oklch(0.96 0.015 220);            /* para áreas con más vida */
   --color-surface: oklch(1 0 0);
-  --color-surface-2: oklch(0.965 0.008 130);
-  --color-border: oklch(0.92 0.008 130);
-  --color-border-strong: oklch(0.85 0.01 130);
-  --color-text: oklch(0.18 0.02 200);
-  --color-text-muted: oklch(0.45 0.015 200);
-  --color-text-subtle: oklch(0.62 0.01 200);
+  --color-surface-2: oklch(0.96 0.012 220);
+  --color-surface-tint-primary: oklch(0.97 0.05 145);  /* verde muy claro */
+  --color-surface-tint-accent: oklch(0.97 0.05 27);    /* rosado muy claro */
+  --color-surface-tint-info: oklch(0.97 0.05 265);     /* azul muy claro */
+  --color-border: oklch(0.91 0.012 220);
+  --color-border-strong: oklch(0.83 0.015 220);
+  --color-text: oklch(0.18 0.025 265);
+  --color-text-muted: oklch(0.45 0.02 265);
+  --color-text-subtle: oklch(0.62 0.015 265);
 
-  /* Brand & semantic — Estadio */
-  --color-primary: oklch(0.52 0.13 165);            /* #047857 verde estadio */
+  /* Brand — los 3 colores hosts del Mundial 2026 */
+  --color-primary: oklch(0.62 0.21 145);              /* #3CAC3B verde México */
   --color-primary-fg: oklch(1 0 0);
-  --color-primary-hover: oklch(0.46 0.14 165);
-  --color-primary-soft: oklch(0.92 0.05 165);       /* bg suave para chips */
-  --color-accent: oklch(0.58 0.22 27);              /* #DC2626 rojo bandera */
-  --color-accent-soft: oklch(0.94 0.05 27);
-  --color-success: oklch(0.65 0.18 145);            /* #16A34A verde brillante */
-  --color-warning: oklch(0.78 0.16 65);             /* #F59E0B ámbar */
-  --color-danger: oklch(0.50 0.21 27);              /* #B91C1C rojo profundo */
-  --color-gold: oklch(0.71 0.16 60);                /* #D97706 oro trofeo */
+  --color-primary-hover: oklch(0.55 0.22 145);
+  --color-primary-soft: oklch(0.92 0.08 145);
+  --color-accent: oklch(0.58 0.24 27);                /* #E61D25 rojo Canadá */
+  --color-accent-fg: oklch(1 0 0);
+  --color-accent-hover: oklch(0.52 0.25 27);
+  --color-accent-soft: oklch(0.94 0.07 27);
+  --color-info: oklch(0.38 0.18 265);                 /* #2A398D azul USA */
+  --color-info-fg: oklch(1 0 0);
+  --color-info-soft: oklch(0.92 0.06 265);
+
+  /* Semantic */
+  --color-success: oklch(0.65 0.20 145);
+  --color-warning: oklch(0.78 0.16 65);
+  --color-danger: oklch(0.55 0.24 27);
+  --color-gold: oklch(0.78 0.16 80);                  /* trofeo */
+
+  /* Gradients reusables como background-image */
+  --gradient-hero: linear-gradient(135deg, oklch(0.62 0.21 145) 0%, oklch(0.50 0.20 200) 50%, oklch(0.38 0.18 265) 100%);
+  --gradient-card-primary: linear-gradient(135deg, oklch(0.97 0.04 145) 0%, oklch(0.99 0.02 145) 100%);
+  --gradient-card-info: linear-gradient(135deg, oklch(0.96 0.04 265) 0%, oklch(0.99 0.02 265) 100%);
+  --gradient-card-accent: linear-gradient(135deg, oklch(0.96 0.04 27) 0%, oklch(0.99 0.02 27) 100%);
+  --gradient-card-gold: linear-gradient(135deg, oklch(0.94 0.10 80) 0%, oklch(0.98 0.04 80) 100%);
 
   /* Radii */
   --radius-xs: 4px;
@@ -40,42 +58,56 @@
   --radius-2xl: 32px;
   --radius-full: 9999px;
 
-  /* Shadows con tinte verde sutil para coherencia con la paleta */
-  --shadow-xs: 0 1px 2px 0 oklch(0.18 0.04 165 / 0.05);
-  --shadow-sm: 0 1px 3px 0 oklch(0.18 0.04 165 / 0.07), 0 1px 2px 0 oklch(0.18 0.04 165 / 0.04);
-  --shadow-md: 0 4px 12px -2px oklch(0.18 0.04 165 / 0.10), 0 2px 4px -1px oklch(0.18 0.04 165 / 0.06);
-  --shadow-lg: 0 12px 32px -8px oklch(0.18 0.04 165 / 0.14), 0 4px 8px -2px oklch(0.18 0.04 165 / 0.07);
+  /* Shadows con tinte azul sutil */
+  --shadow-xs: 0 1px 2px 0 oklch(0.18 0.04 265 / 0.05);
+  --shadow-sm: 0 1px 3px 0 oklch(0.18 0.04 265 / 0.07), 0 1px 2px 0 oklch(0.18 0.04 265 / 0.04);
+  --shadow-md: 0 4px 12px -2px oklch(0.18 0.04 265 / 0.10), 0 2px 4px -1px oklch(0.18 0.04 265 / 0.06);
+  --shadow-lg: 0 12px 32px -8px oklch(0.18 0.04 265 / 0.14), 0 4px 8px -2px oklch(0.18 0.04 265 / 0.07);
 
   /* Breakpoints */
   --breakpoint-xs: 375px;
   --container-app: 1240px;
 
-  /* Animation timing */
+  /* Animation */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Dark mode — verde noche profundo con primary verde brillante */
+/* Dark mode */
 @media (prefers-color-scheme: dark) {
   html:not(.light) {
-    --color-bg: oklch(0.18 0.025 155);              /* #0A1F12 verde noche */
-    --color-surface: oklch(0.22 0.022 155);
-    --color-surface-2: oklch(0.26 0.02 155);
-    --color-border: oklch(0.32 0.018 155);
-    --color-border-strong: oklch(0.40 0.015 155);
-    --color-text: oklch(0.96 0.005 100);
-    --color-text-muted: oklch(0.68 0.01 130);
-    --color-text-subtle: oklch(0.50 0.01 130);
+    --color-bg: oklch(0.15 0.025 265);
+    --color-bg-tint: oklch(0.19 0.035 265);
+    --color-surface: oklch(0.20 0.025 265);
+    --color-surface-2: oklch(0.24 0.025 265);
+    --color-surface-tint-primary: oklch(0.25 0.06 145);
+    --color-surface-tint-accent: oklch(0.25 0.07 27);
+    --color-surface-tint-info: oklch(0.25 0.07 265);
+    --color-border: oklch(0.30 0.022 265);
+    --color-border-strong: oklch(0.40 0.02 265);
+    --color-text: oklch(0.96 0.01 220);
+    --color-text-muted: oklch(0.68 0.015 220);
+    --color-text-subtle: oklch(0.50 0.015 220);
 
-    --color-primary: oklch(0.78 0.16 165);          /* #34D399 verde brillante */
-    --color-primary-hover: oklch(0.83 0.15 165);
-    --color-primary-soft: oklch(0.32 0.08 165);
-    --color-accent: oklch(0.72 0.18 25);            /* #F87171 rojo suave */
-    --color-accent-soft: oklch(0.32 0.10 25);
-    --color-success: oklch(0.75 0.17 145);
+    --color-primary: oklch(0.75 0.20 145);
+    --color-primary-hover: oklch(0.80 0.19 145);
+    --color-primary-soft: oklch(0.32 0.10 145);
+    --color-accent: oklch(0.72 0.22 27);
+    --color-accent-hover: oklch(0.78 0.21 27);
+    --color-accent-soft: oklch(0.30 0.12 27);
+    --color-info: oklch(0.70 0.18 265);
+    --color-info-soft: oklch(0.28 0.10 265);
+
+    --color-success: oklch(0.75 0.20 145);
     --color-warning: oklch(0.82 0.14 70);
-    --color-danger: oklch(0.65 0.20 25);
-    --color-gold: oklch(0.78 0.15 70);
+    --color-danger: oklch(0.70 0.22 27);
+    --color-gold: oklch(0.82 0.15 80);
+
+    --gradient-hero: linear-gradient(135deg, oklch(0.30 0.18 145) 0%, oklch(0.25 0.20 200) 50%, oklch(0.22 0.18 265) 100%);
+    --gradient-card-primary: linear-gradient(135deg, oklch(0.26 0.08 145) 0%, oklch(0.22 0.03 145) 100%);
+    --gradient-card-info: linear-gradient(135deg, oklch(0.26 0.08 265) 0%, oklch(0.22 0.03 265) 100%);
+    --gradient-card-accent: linear-gradient(135deg, oklch(0.26 0.10 27) 0%, oklch(0.22 0.03 27) 100%);
+    --gradient-card-gold: linear-gradient(135deg, oklch(0.30 0.10 80) 0%, oklch(0.22 0.03 80) 100%);
 
     --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px 0 rgb(0 0 0 / 0.22);
     --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.45), 0 2px 4px -1px rgb(0 0 0 / 0.28);
@@ -84,24 +116,38 @@
 }
 
 html.dark {
-  --color-bg: oklch(0.18 0.025 155);
-  --color-surface: oklch(0.22 0.022 155);
-  --color-surface-2: oklch(0.26 0.02 155);
-  --color-border: oklch(0.32 0.018 155);
-  --color-border-strong: oklch(0.40 0.015 155);
-  --color-text: oklch(0.96 0.005 100);
-  --color-text-muted: oklch(0.68 0.01 130);
-  --color-text-subtle: oklch(0.50 0.01 130);
+  --color-bg: oklch(0.15 0.025 265);
+  --color-bg-tint: oklch(0.19 0.035 265);
+  --color-surface: oklch(0.20 0.025 265);
+  --color-surface-2: oklch(0.24 0.025 265);
+  --color-surface-tint-primary: oklch(0.25 0.06 145);
+  --color-surface-tint-accent: oklch(0.25 0.07 27);
+  --color-surface-tint-info: oklch(0.25 0.07 265);
+  --color-border: oklch(0.30 0.022 265);
+  --color-border-strong: oklch(0.40 0.02 265);
+  --color-text: oklch(0.96 0.01 220);
+  --color-text-muted: oklch(0.68 0.015 220);
+  --color-text-subtle: oklch(0.50 0.015 220);
 
-  --color-primary: oklch(0.78 0.16 165);
-  --color-primary-hover: oklch(0.83 0.15 165);
-  --color-primary-soft: oklch(0.32 0.08 165);
-  --color-accent: oklch(0.72 0.18 25);
-  --color-accent-soft: oklch(0.32 0.10 25);
-  --color-success: oklch(0.75 0.17 145);
+  --color-primary: oklch(0.75 0.20 145);
+  --color-primary-hover: oklch(0.80 0.19 145);
+  --color-primary-soft: oklch(0.32 0.10 145);
+  --color-accent: oklch(0.72 0.22 27);
+  --color-accent-hover: oklch(0.78 0.21 27);
+  --color-accent-soft: oklch(0.30 0.12 27);
+  --color-info: oklch(0.70 0.18 265);
+  --color-info-soft: oklch(0.28 0.10 265);
+
+  --color-success: oklch(0.75 0.20 145);
   --color-warning: oklch(0.82 0.14 70);
-  --color-danger: oklch(0.65 0.20 25);
-  --color-gold: oklch(0.78 0.15 70);
+  --color-danger: oklch(0.70 0.22 27);
+  --color-gold: oklch(0.82 0.15 80);
+
+  --gradient-hero: linear-gradient(135deg, oklch(0.30 0.18 145) 0%, oklch(0.25 0.20 200) 50%, oklch(0.22 0.18 265) 100%);
+  --gradient-card-primary: linear-gradient(135deg, oklch(0.26 0.08 145) 0%, oklch(0.22 0.03 145) 100%);
+  --gradient-card-info: linear-gradient(135deg, oklch(0.26 0.08 265) 0%, oklch(0.22 0.03 265) 100%);
+  --gradient-card-accent: linear-gradient(135deg, oklch(0.26 0.10 27) 0%, oklch(0.22 0.03 27) 100%);
+  --gradient-card-gold: linear-gradient(135deg, oklch(0.30 0.10 80) 0%, oklch(0.22 0.03 80) 100%);
 
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px 0 rgb(0 0 0 / 0.22);
   --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.45), 0 2px 4px -1px rgb(0 0 0 / 0.28);
