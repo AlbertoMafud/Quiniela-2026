@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quiniela Familia 2026
 
-## Getting Started
+App de quiniela del Mundial 2026 para la familia. Construida con Next.js 16 (App Router) + Supabase + Tailwind v4. Diseño premium tipo Apple, mobile-first.
 
-First, run the development server:
+## Stack
+
+- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS v4, Framer Motion, shadcn-style primitives.
+- **Backend:** Supabase (Postgres + RLS).
+- **Auth:** PIN custom (sin Supabase Auth). Sesión por cookie HMAC firmada.
+- **Hosting:** Vercel.
+- **Auto-ingest resultados (M6):** football-data.org vía Vercel Cron.
+
+## Setup local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# 1. Instalar dependencias
+pnpm install
+
+# 2. Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con las credenciales de tu proyecto Supabase y un SESSION_SECRET aleatorio.
+
+# 3. Iniciar Supabase local (requiere Docker Desktop)
+pnpm exec supabase start
+pnpm exec supabase db reset   # aplica migraciones + seed
+
+# 4. Correr Next.js
 pnpm dev
-# or
-bun dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Para generar `SESSION_SECRET` aleatorio:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Crear el proyecto Supabase en la nube (producción)
 
-## Learn More
+1. Ir a [supabase.com](https://supabase.com) y crear proyecto nuevo (región: us-east-1 o cercana a México).
+2. Copiar `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`.
+3. Copiar `anon public key` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+4. Copiar `service_role key` (Settings → API) → `SUPABASE_SERVICE_ROLE_KEY` (¡secreto, nunca al cliente!).
+5. Linkear repo local: `pnpm exec supabase link --project-ref <ref>`.
+6. Aplicar migraciones a remoto: `pnpm exec supabase db push`.
+7. Cargar seed: ejecutar `supabase/seed.sql` desde el SQL editor del dashboard.
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy en Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Ir a [vercel.com](https://vercel.com), importar este repo desde GitHub.
+2. Framework: Next.js (auto-detectado).
+3. Agregar variables de entorno (las mismas de `.env.local`).
+4. Deploy.
+5. Configurar dominio custom si aplica.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estructura
 
-## Deploy on Vercel
+```
+src/
+  app/
+    (auth)/         Login + Registro (públicos)
+    (app)/          Páginas que requieren login (dashboard, pronósticos, ranking…)
+    admin/          Páginas de administrador (próximo milestone)
+    api/            API routes / cron jobs
+  components/
+    ui/             Primitivos shadcn-style (Button, Input, Card, PinInput, Label)
+    app/            Componentes de la app (Navigation, DashboardCards)
+  lib/
+    supabase/       Clientes server, admin (service role), browser
+    data/           Seeds del torneo en TS (mismos datos que supabase/seed.sql)
+    auth.ts         PIN hash + sesión HMAC (server)
+    auth-edge.ts    Verificación de sesión edge-compatible (middleware)
+    scoring.ts      Cálculo de puntos
+    utils.ts        cn(), formatDateMx(), slugify()
+supabase/
+  config.toml
+  migrations/       Schema + RLS
+  seed.sql          Equipos + 72 partidos placeholder
+middleware.ts       Redirección a /login en rutas protegidas
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Roadmap de milestones
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| # | Estado | Contenido |
+|---|---|---|
+| M1 | ✅ | Setup, schema, auth PIN, layout, dashboard |
+| M2 | ⏳ | Pronósticos fase de grupos + ranking |
+| M3 | ⏳ | Mejores terceros + reglas + admin |
+| M4 | ⏳ | Tabla FIFA + bracket-desde-inicio + bracket post-grupos + eliminatorias |
+| M5 | ⏳ | Vista pública pronósticos + estadísticas |
+| M6 | ⏳ | Auto-ingest API + Vercel Cron + UI polish + responsive QA Playwright |
+| M7 | ⏳ | Audit Codex + fix bugs + onboarding familia |
+
+## Notas técnicas
+
+- **Tipos de Supabase:** los manuales en `src/lib/supabase/database.types.ts` están como referencia. La actual integración no propaga el generic `<Database>` correctamente (problema conocido con `@supabase/ssr` 0.10 + `@supabase/supabase-js` 2.106); cada query castea su row con la interface local que necesite. Cuando se ejecute `pnpm supabase gen types typescript --local` se regenera el archivo y se puede tipar globalmente.
+- **Custom auth + RLS:** las server actions usan service_role para escribir, y antes de cualquier insert/update por cuenta de un jugador llaman `setPlayerContext(playerId)` que ejecuta `select set_config('app.player_id', uuid, true)`. Las policies RLS validan `current_player_id()` para defense-in-depth.
+- **Equipos placeholder:** seeds usan `EA1..EL4` con nombres "Equipo A1..L4". Reemplazar cuando se publique el sorteo del Mundial 2026.
