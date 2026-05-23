@@ -52,8 +52,9 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Dark mode: tanto por preferencia del sistema como por clase explícita en <html>. */
 @media (prefers-color-scheme: dark) {
-  @theme {
+  html:not(.light) {
     --color-bg: oklch(0.13 0 0);
     --color-surface: oklch(0.18 0 0);
     --color-surface-2: oklch(0.22 0 0);
@@ -70,6 +71,24 @@
     --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.4), 0 2px 4px -1px rgb(0 0 0 / 0.25);
     --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.5), 0 4px 8px -2px rgb(0 0 0 / 0.3);
   }
+}
+
+html.dark {
+  --color-bg: oklch(0.13 0 0);
+  --color-surface: oklch(0.18 0 0);
+  --color-surface-2: oklch(0.22 0 0);
+  --color-border: oklch(0.27 0 0);
+  --color-border-strong: oklch(0.35 0 0);
+  --color-text: oklch(0.96 0 0);
+  --color-text-muted: oklch(0.65 0 0);
+  --color-text-subtle: oklch(0.48 0 0);
+
+  --color-primary: oklch(0.68 0.19 264);
+  --color-primary-hover: oklch(0.75 0.18 264);
+
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px 0 rgb(0 0 0 / 0.2);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.4), 0 2px 4px -1px rgb(0 0 0 / 0.25);
+  --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.5), 0 4px 8px -2px rgb(0 0 0 / 0.3);
 }
 
 html {

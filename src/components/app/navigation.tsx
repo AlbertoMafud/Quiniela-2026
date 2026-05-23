@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/app/(auth)/_actions";
+import { ThemeToggle } from "./theme-toggle";
 
 interface NavProps {
   playerName?: string;
@@ -70,6 +71,7 @@ export function TopNav({ playerName, isAdmin }: NavProps) {
         </nav>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           {isAdmin && (
             <Link
               href="/admin"

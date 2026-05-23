@@ -45,6 +45,13 @@ export default function RootLayout({
       className={`${inter.variable} ${interTight.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem('qf_theme');if(m==='dark')document.documentElement.classList.add('dark');else if(m==='light')document.documentElement.classList.add('light');}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
