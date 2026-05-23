@@ -15,11 +15,7 @@ interface PlayerRow {
   name: string;
   is_admin: boolean;
   created_at: string;
-}
-
-interface PredCountRow {
-  player_id: string;
-  count: number;
+  last_seen_at: string | null;
 }
 
 export default async function UsuariosPage() {
@@ -27,7 +23,7 @@ export default async function UsuariosPage() {
 
   const { data: players } = await supabase
     .from("players")
-    .select("id, name, is_admin, created_at")
+    .select("id, name, is_admin, created_at, last_seen_at")
     .order("created_at", { ascending: true });
 
   const { data: predRows } = await supabase
@@ -44,6 +40,8 @@ export default async function UsuariosPage() {
     predictions_count: counts.get(p.id) ?? 0,
   }));
 
+  const onlineCount = enriched.filter((p) => isOnline(p.last_seen_at)).length;
+
   return (
     <div className="space-y-5">
       <header>
@@ -52,6 +50,11 @@ export default async function UsuariosPage() {
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
           {enriched.length} jugador{enriched.length === 1 ? "" : "es"} registrado{enriched.length === 1 ? "" : "s"}.
+          {" "}
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-success)] animate-pulse" />
+            {onlineCount} en línea ahora.
+          </span>
         </p>
       </header>
 
@@ -59,8 +62,9 @@ export default async function UsuariosPage() {
         <CardHeader>
           <CardTitle>Lista</CardTitle>
           <CardDescription>
-            Resetea PIN si alguien lo olvida, marca admin a quien necesite acceso al panel,
-            o borra cuentas duplicadas.
+            Punto verde = activo en los últimos 2 minutos. Resetea PIN si alguien
+            lo olvida, marca admin a quien necesite acceso al panel, o borra
+            cuentas duplicadas.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -69,4 +73,11 @@ export default async function UsuariosPage() {
       </Card>
     </div>
   );
+}
+
+function isOnline(lastSeenAt: string | null): boolean {
+  if (!lastSeenAt) return false;
+  const last = new Date(lastSeenAt).getTime();
+  const now = Date.now();
+  return now - last < 2 * 60 * 1000; // 2 minutos
 }

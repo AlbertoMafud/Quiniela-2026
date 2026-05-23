@@ -5,6 +5,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { BottomNav, TopNav } from "@/components/app/navigation";
 import { RulesFab } from "@/components/app/rules-fab";
 import { RulesContent } from "@/components/app/rules-content";
+import { HeartbeatPing } from "@/components/app/heartbeat-ping";
 
 export default async function AppLayout({
   children,
@@ -34,6 +35,7 @@ export default async function AppLayout({
       <RulesFab>
         <RulesContent compact />
       </RulesFab>
+      <HeartbeatPing />
       <BottomNav isAdmin={player.is_admin} />
       <noscript>
         <div className="fixed bottom-0 inset-x-0 bg-[var(--color-warning)] text-black text-sm p-2 text-center">

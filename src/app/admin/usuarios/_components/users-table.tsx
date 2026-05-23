@@ -19,6 +19,36 @@ interface PlayerItem {
   is_admin: boolean;
   created_at: string;
   predictions_count: number;
+  last_seen_at: string | null;
+}
+
+function presence(lastSeenAt: string | null): {
+  label: string;
+  online: boolean;
+  recent: boolean;
+} {
+  if (!lastSeenAt) return { label: "Nunca", online: false, recent: false };
+  const last = new Date(lastSeenAt).getTime();
+  const now = Date.now();
+  const diffMin = (now - last) / 60_000;
+  if (diffMin < 2) return { label: "En línea", online: true, recent: false };
+  if (diffMin < 60)
+    return {
+      label: `Hace ${Math.round(diffMin)} min`,
+      online: false,
+      recent: true,
+    };
+  if (diffMin < 60 * 24)
+    return {
+      label: `Hace ${Math.round(diffMin / 60)} h`,
+      online: false,
+      recent: false,
+    };
+  return {
+    label: `Hace ${Math.round(diffMin / 60 / 24)} d`,
+    online: false,
+    recent: false,
+  };
 }
 
 export function UsersTable({ players }: { players: PlayerItem[] }) {
@@ -35,6 +65,7 @@ export function UsersTable({ players }: { players: PlayerItem[] }) {
 
 function PlayerRow({ player }: { player: PlayerItem }) {
   const [expanded, setExpanded] = useState(false);
+  const pres = presence(player.last_seen_at);
 
   return (
     <div>
@@ -44,26 +75,43 @@ function PlayerRow({ player }: { player: PlayerItem }) {
           onClick={() => setExpanded((v) => !v)}
           className="flex-1 flex items-center gap-3 min-w-0 text-left"
         >
-          <div
-            className={cn(
-              "h-10 w-10 rounded-full flex items-center justify-center font-semibold text-sm shrink-0",
-              player.is_admin
-                ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)]"
-                : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
+          <div className="relative shrink-0">
+            <div
+              className={cn(
+                "h-10 w-10 rounded-full flex items-center justify-center font-semibold text-sm",
+                player.is_admin
+                  ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)]"
+                  : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
+              )}
+            >
+              {player.name.charAt(0).toUpperCase()}
+            </div>
+            {pres.online && (
+              <span
+                className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[var(--color-success)] border-2 border-[var(--color-surface)] animate-pulse"
+                aria-label="En línea"
+              />
             )}
-          >
-            {player.name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-[var(--color-text)] truncate">
+            <p className="font-medium text-[var(--color-text)] truncate flex items-center gap-1.5 flex-wrap">
               {player.name}
               {player.is_admin && (
-                <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-xs text-[var(--color-primary)]">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-primary)]/10 text-xs text-[var(--color-primary)]">
                   <Shield className="h-3 w-3" /> admin
+                </span>
+              )}
+              {pres.online && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-success)]/15 text-[10px] text-[var(--color-success)] font-semibold">
+                  En línea
                 </span>
               )}
             </p>
             <p className="text-xs text-[var(--color-text-muted)] truncate">
+              <span className={pres.recent ? "text-[var(--color-warning)]" : ""}>
+                {pres.label}
+              </span>
+              {" · "}
               {player.predictions_count} pronósticos · creado {formatDateMx(player.created_at)}
             </p>
           </div>

@@ -6,22 +6,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { OnlinePlayersWidget } from "./_components/online-players-widget";
 
-interface CountRow { count: number | null }
+interface PresenceRow { id: string; name: string; last_seen_at: string | null }
 
 export default async function AdminDashboardPage() {
   const supabase = adminClient();
 
-  const [{ count: players }, { count: matches }, { count: predictions }, { count: results }] =
-    await Promise.all([
-      supabase.from("players").select("*", { count: "exact", head: true }),
-      supabase.from("matches").select("*", { count: "exact", head: true }),
-      supabase.from("predictions").select("*", { count: "exact", head: true }),
-      supabase
-        .from("matches")
-        .select("*", { count: "exact", head: true })
-        .not("home_score", "is", null),
-    ]);
+  const [
+    { count: players },
+    { count: matches },
+    { count: predictions },
+    { count: results },
+    { data: playersWithSeen },
+  ] = await Promise.all([
+    supabase.from("players").select("*", { count: "exact", head: true }),
+    supabase.from("matches").select("*", { count: "exact", head: true }),
+    supabase.from("predictions").select("*", { count: "exact", head: true }),
+    supabase
+      .from("matches")
+      .select("*", { count: "exact", head: true })
+      .not("home_score", "is", null),
+    supabase
+      .from("players")
+      .select("id, name, last_seen_at")
+      .not("last_seen_at", "is", null)
+      .order("last_seen_at", { ascending: false }),
+  ]);
+
+  const presence = (playersWithSeen ?? []) as PresenceRow[];
 
   return (
     <div className="space-y-5">
@@ -33,6 +46,8 @@ export default async function AdminDashboardPage() {
           Resumen de la quiniela.
         </p>
       </header>
+
+      <OnlinePlayersWidget players={presence} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <StatCard label="Jugadores" value={players ?? 0} />
@@ -51,8 +66,8 @@ export default async function AdminDashboardPage() {
         <CardContent className="space-y-2 text-sm">
           <p>• <strong>Resultados</strong>: meter marcadores reales conforme van pasando los partidos.</p>
           <p>• <strong>Puntos</strong>: ajustar cuánto valen aciertos y bonus del cuadro.</p>
-          <p>• <strong>Deadlines</strong>: fechas de cierre por etapa. Lo que pase el deadline ya no se puede editar.</p>
-          <p>• <strong>Usuarios</strong>: ver jugadores, resetear PIN, marcar admin.</p>
+          <p>• <strong>Cierres</strong>: fechas límite por etapa. Lo que pase el cierre ya no se puede editar.</p>
+          <p>• <strong>Usuarios</strong>: ver jugadores, resetear PIN, marcar admin, ver quién está en línea.</p>
           <p>• <strong>Config</strong>: activar cuadro desde el inicio y auto-ingesta de resultados.</p>
         </CardContent>
       </Card>
