@@ -54,24 +54,37 @@ export default async function EliminatoriasRondaPage({
 
   const supabase = adminClient();
 
-  const [{ data: matches }, { data: teams }, { data: preds }, { data: deadline }] =
-    await Promise.all([
-      supabase
-        .from("matches")
-        .select("id, stage, kickoff_at, home_team_code, away_team_code")
-        .eq("stage", round)
-        .order("kickoff_at", { ascending: true }),
-      supabase.from("teams").select("code, name, flag_emoji"),
-      supabase
-        .from("predictions")
-        .select("match_id, home_score, away_score, penalty_winner_code")
-        .eq("player_id", session.playerId),
-      supabase
-        .from("deadlines")
-        .select("deadline_at")
-        .eq("stage", `${round}_scores`)
-        .maybeSingle<{ deadline_at: string }>(),
-    ]);
+  const [
+    { data: matches },
+    { data: teams },
+    { data: preds },
+    { data: deadline },
+    { data: scoringRow },
+  ] = await Promise.all([
+    supabase
+      .from("matches")
+      .select("id, stage, kickoff_at, home_team_code, away_team_code")
+      .eq("stage", round)
+      .order("kickoff_at", { ascending: true }),
+    supabase.from("teams").select("code, name, flag_emoji"),
+    supabase
+      .from("predictions")
+      .select("match_id, home_score, away_score, penalty_winner_code")
+      .eq("player_id", session.playerId),
+    supabase
+      .from("deadlines")
+      .select("deadline_at")
+      .eq("stage", `${round}_scores`)
+      .maybeSingle<{ deadline_at: string }>(),
+    supabase
+      .from("scoring_params")
+      .select("exact_score_pts, correct_winner_pts")
+      .eq("id", 1)
+      .maybeSingle<{ exact_score_pts: number; correct_winner_pts: number }>(),
+  ]);
+
+  const exactPts = scoringRow?.exact_score_pts ?? 3;
+  const winnerPts = scoringRow?.correct_winner_pts ?? 2;
 
   const matchRows = (matches ?? []) as MatchRow[];
   const teamMap = new Map(
@@ -101,6 +114,24 @@ export default async function EliminatoriasRondaPage({
         </div>
         <RoundsSwitcher current={round} />
       </header>
+
+      <Card className="bg-[var(--color-info)]/8 border-[var(--color-info)]/30">
+        <CardContent className="py-3 px-4 sm:px-5 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
+          <span className="text-[var(--color-text-muted)]">Puntos por partido:</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 rounded-full bg-[var(--color-success)] text-white text-xs font-bold tabular-nums">
+              {exactPts}
+            </span>
+            <span className="text-[var(--color-text)]">marcador exacto</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 rounded-full bg-[var(--color-warning)] text-black text-xs font-bold tabular-nums">
+              {winnerPts}
+            </span>
+            <span className="text-[var(--color-text)]">ganador correcto</span>
+          </span>
+        </CardContent>
+      </Card>
 
       {matchRows.length === 0 ? (
         <Card>

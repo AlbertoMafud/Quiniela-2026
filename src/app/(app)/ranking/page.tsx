@@ -73,6 +73,8 @@ export default async function RankingPage() {
     { data: teams },
     { data: thirdPicks },
     { data: scoringRow },
+    { data: deadlines },
+    { data: mePlayer },
   ] = await Promise.all([
     supabase.from("players").select("id, name").order("name"),
     supabase
@@ -83,7 +85,34 @@ export default async function RankingPage() {
     supabase.from("teams").select("code, name, group_letter, flag_emoji"),
     supabase.from("third_picks").select("player_id, team_code"),
     supabase.from("scoring_params").select("*").eq("id", 1).maybeSingle<ScoringParams>(),
+    supabase.from("deadlines").select("stage, deadline_at"),
+    supabase
+      .from("players")
+      .select("is_admin")
+      .eq("id", session.playerId)
+      .maybeSingle<{ is_admin: boolean }>(),
   ]);
+
+  const isAdmin = mePlayer?.is_admin === true;
+  const now = new Date();
+  const deadlineByStage = new Map<string, Date>();
+  for (const d of (deadlines ?? []) as Array<{ stage: string; deadline_at: string }>) {
+    deadlineByStage.set(d.stage, new Date(d.deadline_at));
+  }
+  function isStageRevealed(stageKey: string): boolean {
+    if (isAdmin) return true;
+    const dl = deadlineByStage.get(stageKey);
+    if (!dl) return false; // sin deadline configurado → mantenemos privacidad
+    return now >= dl;
+  }
+  const groupRevealed = isStageRevealed("group_stage");
+  const roundRevealed: Record<Round, boolean> = {
+    r32: isStageRevealed("r32_scores"),
+    r16: isStageRevealed("r16_scores"),
+    qf: isStageRevealed("qf_scores"),
+    sf: isStageRevealed("sf_scores"),
+    final: isStageRevealed("final_scores"),
+  };
 
   const playerList = (players ?? []) as PlayerDB[];
   const matchList = (matches ?? []) as MatchDB[];
@@ -189,6 +218,8 @@ export default async function RankingPage() {
         teamsByCode={teamsByCode}
         playersById={playersById}
         matchPredsMap={matchPredsMap}
+        roundRevealed={roundRevealed}
+        mePlayerId={session.playerId}
       />
 
       <section className="space-y-3">
@@ -237,11 +268,14 @@ export default async function RankingPage() {
             };
           });
 
-          // Picks por match
+          // Picks por match — antes del cierre solo se ven los míos
           const picksByMatch: Record<string, UIPickRow[]> = {};
           for (const m of groupMatches) {
             const list = matchPredsMap.get(m.id) ?? [];
-            picksByMatch[m.id] = list
+            const visible = groupRevealed
+              ? list
+              : list.filter((row) => row.player_id === session.playerId);
+            picksByMatch[m.id] = visible
               .map((row) => ({
                 player_id: row.player_id,
                 player_name: playersById.get(row.player_id)?.name ?? "?",
@@ -268,6 +302,7 @@ export default async function RankingPage() {
               playedCount={playedCount}
               totalCount={groupMatches.length}
               defaultOpen={idx === 0}
+              picksHidden={!groupRevealed}
             />
           );
         })}
@@ -281,11 +316,15 @@ function EliminationsSection({
   teamsByCode,
   playersById,
   matchPredsMap,
+  roundRevealed,
+  mePlayerId,
 }: {
   matchList: MatchDB[];
   teamsByCode: Map<string, TeamDB>;
   playersById: Map<string, PlayerDB>;
   matchPredsMap: ReturnType<typeof breakdownByMatch>;
+  roundRevealed: Record<Round, boolean>;
+  mePlayerId: string;
 }) {
   const ROUNDS_ORDER: Round[] = ["r32", "r16", "qf", "sf", "final"];
   const elimMatches = matchList.filter((m) => m.stage !== "group");
@@ -317,10 +356,14 @@ function EliminationsSection({
           };
         });
 
+        const revealed = roundRevealed[round];
         const picksByMatch: Record<string, RoundPickRow[]> = {};
         for (const m of roundMatches) {
           const list = matchPredsMap.get(m.id) ?? [];
-          picksByMatch[m.id] = list
+          const visible = revealed
+            ? list
+            : list.filter((row) => row.player_id === mePlayerId);
+          picksByMatch[m.id] = visible
             .map((row) => ({
               player_id: row.player_id,
               player_name: playersById.get(row.player_id)?.name ?? "?",
@@ -346,6 +389,7 @@ function EliminationsSection({
             playedCount={playedCount}
             totalCount={roundMatches.length}
             defaultOpen={false}
+            picksHidden={!revealed}
           />
         );
       })}

@@ -111,21 +111,7 @@ export function computeTotals(
 ): PlayerTotals[] {
   const breakdown = breakdownByMatch(matches, predictions, params);
 
-  // Indexar predictions por player
-  const predsByPlayer = new Map<string, number>(); // player_id → group points
-  for (const list of breakdown.values()) {
-    for (const row of list) {
-      const m = matches.find((x) => row);
-      // los puntos solo cuentan si el match es group y tiene actual
-      // (breakdownByMatch ya devuelve 0 si no hay actual)
-      predsByPlayer.set(
-        row.player_id,
-        (predsByPlayer.get(row.player_id) ?? 0) + row.points,
-      );
-    }
-  }
-
-  // Reseteamos para clasificar correctamente por stage
+  // Acumular puntos por stage
   const groupPointsByPlayer = new Map<string, number>();
   const eliminationPointsByPlayer = new Map<string, number>();
   for (const [matchId, list] of breakdown) {
@@ -146,9 +132,19 @@ export function computeTotals(
     }
   }
 
-  // Mejores terceros: por cada player, contar cuántos de sus picks están en thirdsActualBest
+  // Mejores terceros: por cada player, contar cuántos de sus picks están en thirdsActualBest.
+  // OJO: solo se cuentan cuando la fase de grupos esté COMPLETA (todos los partidos jugados).
+  // De lo contrario, `bestThirds()` devuelve teams ordenados alfabéticamente con 0 pts
+  // y daría puntos "fantasma" antes de que arranque el torneo.
   const thirdsByPlayer = new Map<string, number>();
-  if (thirdsActualBest.length > 0) {
+  const groupTotalCount = matches.filter((m) => m.stage === "group").length;
+  const groupStageComplete =
+    groupTotalCount > 0 &&
+    matches.filter(
+      (m) =>
+        m.stage === "group" && m.home_score !== null && m.away_score !== null,
+    ).length === groupTotalCount;
+  if (groupStageComplete && thirdsActualBest.length > 0) {
     for (const p of thirdPicks) {
       if (thirdsActualBest.includes(p.team_code)) {
         thirdsByPlayer.set(

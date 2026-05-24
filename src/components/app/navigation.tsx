@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -7,13 +8,16 @@ import {
   Target,
   Trophy,
   BarChart3,
-  User,
+  Users,
   Settings,
   ChartLine,
+  Menu,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/app/(auth)/_actions";
 import { ThemeToggle } from "./theme-toggle";
+import { Sheet } from "@/components/ui/sheet";
 
 interface NavProps {
   playerName?: string;
@@ -29,7 +33,7 @@ const PRIMARY_LINKS = [
 
 const SECONDARY_LINKS = [
   { href: "/estadisticas", label: "Estadísticas", icon: ChartLine },
-  { href: "/pronosticos-publicos", label: "Públicos", icon: User },
+  { href: "/pronosticos-publicos", label: "Públicos", icon: Users },
 ] as const;
 
 export function TopNav({ playerName, isAdmin }: NavProps) {
@@ -98,40 +102,115 @@ export function TopNav({ playerName, isAdmin }: NavProps) {
 
 export function BottomNav({ isAdmin }: NavProps) {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const links = [
-    ...PRIMARY_LINKS,
-    isAdmin
-      ? { href: "/admin", label: "Admin", icon: Settings as typeof User }
-      : { href: "/perfil", label: "Yo", icon: User },
-  ];
+  const isMenuActive =
+    SECONDARY_LINKS.some((l) => pathname.startsWith(l.href)) ||
+    (isAdmin && pathname.startsWith("/admin"));
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-xl safe-area-pb">
-      <ul className="flex items-stretch h-16">
-        {links.map(({ href, label, icon: Icon }) => {
-          const active =
-            href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(href);
-          return (
-            <li key={href} className="flex-1">
-              <Link
-                href={href}
-                className={cn(
-                  "h-full w-full flex flex-col items-center justify-center gap-1 transition-colors",
-                  active
-                    ? "text-[var(--color-primary)]"
-                    : "text-[var(--color-text-muted)]",
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-[11px] font-medium">{label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <>
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-xl safe-area-pb">
+        <ul className="flex items-stretch h-16">
+          {PRIMARY_LINKS.map(({ href, label, icon: Icon }) => {
+            const active =
+              href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(href);
+            return (
+              <li key={href} className="flex-1">
+                <Link
+                  href={href}
+                  className={cn(
+                    "h-full w-full flex flex-col items-center justify-center gap-1 transition-colors",
+                    active
+                      ? "text-[var(--color-primary)]"
+                      : "text-[var(--color-text-muted)]",
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="text-[11px] font-medium">{label}</span>
+                </Link>
+              </li>
+            );
+          })}
+          <li className="flex-1">
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Más opciones"
+              className={cn(
+                "h-full w-full flex flex-col items-center justify-center gap-1 transition-colors",
+                isMenuActive
+                  ? "text-[var(--color-primary)]"
+                  : "text-[var(--color-text-muted)]",
+              )}
+            >
+              <Menu className="h-5 w-5" />
+              <span className="text-[11px] font-medium">Más</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <Sheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        title="Menú"
+        side="bottom"
+      >
+        <MoreMenu isAdmin={isAdmin} onNavigate={() => setMenuOpen(false)} />
+      </Sheet>
+    </>
+  );
+}
+
+function MoreMenu({
+  isAdmin,
+  onNavigate,
+}: {
+  isAdmin?: boolean;
+  onNavigate: () => void;
+}) {
+  return (
+    <div className="space-y-1.5 pb-4">
+      {SECONDARY_LINKS.map(({ href, label, icon: Icon }) => (
+        <Link
+          key={href}
+          href={href}
+          onClick={onNavigate}
+          className="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-2)] active:bg-[var(--color-surface-2)] transition-colors"
+        >
+          <Icon className="h-5 w-5 text-[var(--color-text-muted)]" />
+          <span className="text-base font-medium text-[var(--color-text)]">
+            {label}
+          </span>
+        </Link>
+      ))}
+      {isAdmin && (
+        <Link
+          href="/admin"
+          onClick={onNavigate}
+          className="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-primary)]/8 hover:bg-[var(--color-primary)]/15 transition-colors"
+        >
+          <Settings className="h-5 w-5 text-[var(--color-primary)]" />
+          <span className="text-base font-medium text-[var(--color-primary)]">
+            Admin
+          </span>
+        </Link>
+      )}
+
+      <div className="pt-2 mt-2 border-t border-[var(--color-border)]">
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)] text-[var(--color-danger)] hover:bg-[var(--color-danger)]/8 transition-colors"
+          >
+            <LogOut className="h-5 w-5" />
+            <span className="text-base font-medium">Salir</span>
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

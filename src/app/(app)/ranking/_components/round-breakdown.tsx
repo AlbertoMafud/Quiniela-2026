@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Check, X } from "lucide-react";
+import { ChevronDown, Check, X, Lock } from "lucide-react";
 import { cn, formatDateMx } from "@/lib/utils";
 
 export interface RoundMatchRow {
@@ -32,6 +32,8 @@ interface Props {
   playedCount: number;
   totalCount: number;
   defaultOpen?: boolean;
+  /** Si true, los pronósticos de otros jugadores se ocultan (cierre no pasó). */
+  picksHidden?: boolean;
 }
 
 export function RoundBreakdown({
@@ -41,6 +43,7 @@ export function RoundBreakdown({
   playedCount,
   totalCount,
   defaultOpen = false,
+  picksHidden = false,
 }: Props) {
   const [open, setOpen] = React.useState(defaultOpen);
 
@@ -79,6 +82,12 @@ export function RoundBreakdown({
 
       {open && (
         <div className="border-t border-[var(--color-border)] divide-y divide-[var(--color-border)]">
+          {picksHidden && (
+            <div className="px-4 sm:px-5 py-2.5 bg-[var(--color-info)]/8 text-xs sm:text-sm text-[var(--color-text-muted)] flex items-center gap-2">
+              <Lock className="h-3.5 w-3.5 text-[var(--color-info)] shrink-0" />
+              Solo ves tus propios pronósticos. Los del resto se mostrarán al cerrar esta ronda.
+            </div>
+          )}
           {matches.map((m) => {
             const picks = picksByMatch[m.id] ?? [];
             const hasResult = m.home_score !== null && m.away_score !== null;
