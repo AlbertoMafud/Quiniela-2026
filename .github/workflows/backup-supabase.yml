@@ -1,0 +1,39 @@
+name: Backup Supabase DB
+
+# Corre diario a las 5am Mexico (11:00 UTC). Tambien puedes dispararlo a mano.
+on:
+  schedule:
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install postgres client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Falta secret SUPABASE_DB_URL en el repo"
+            exit 1
+          fi
+          mkdir -p backups
+          STAMP=$(date -u +"%Y-%m-%d_%H%M")
+          OUT="backups/quiniela-${STAMP}.sql"
+          pg_dump --no-owner --no-acl --clean --if-exists --quote-all-identifiers "$SUPABASE_DB_URL" > "$OUT"
+          gzip "$OUT"
+          ls -lh backups/
+
+      - name: Upload artifact (retención 90 días)
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ github.run_id }}
+          path: backups/*.sql.gz
+          retention-days: 90

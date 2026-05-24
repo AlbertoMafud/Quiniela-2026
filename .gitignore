@@ -54,4 +54,7 @@ next-env.d.ts
 /supabase/.branches
 /supabase/.temp
 
+# db backups (locales, contienen toda la data)
+/backups/
+
 .vercel
