@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
-import { formatDateMx } from "@/lib/utils";
+import { formatMatchDayMx } from "@/lib/utils";
 
 export const metadata = { title: "Estadísticas" };
 
@@ -84,7 +84,7 @@ export default async function EstadisticasIndexPage() {
                         className="flex flex-col gap-1 p-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-sm)] transition-all"
                       >
                         <p className="text-xs text-[var(--color-text-subtle)] tabular-nums">
-                          {formatDateMx(m.kickoff_at)}
+                          {formatMatchDayMx(m.kickoff_at)}
                         </p>
                         <p className="font-medium text-sm">
                           {home?.flag_emoji ?? "🏳️"} {home?.name ?? "?"} vs{" "}

@@ -4,7 +4,7 @@ import { ArrowLeft, Eye } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateMx, cn } from "@/lib/utils";
+import { formatDateMx, formatMatchDayMx, cn } from "@/lib/utils";
 import { scoreMatch, type ScoringParams } from "@/lib/scoring";
 
 export async function generateMetadata({
@@ -189,7 +189,7 @@ export default async function GrupoPage({
                     )}
                   </div>
                   <CardDescription>
-                    {formatDateMx(m.kickoff_at)}
+                    {formatMatchDayMx(m.kickoff_at)}
                     {!hasResult && " · resultado pendiente"}
                   </CardDescription>
                 </CardHeader>

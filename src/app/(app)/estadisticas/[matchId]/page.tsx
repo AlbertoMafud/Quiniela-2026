@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { OutcomePie, ScoresBar } from "./_components/stats-charts";
-import { formatDateMx } from "@/lib/utils";
+import { formatMatchDayMx } from "@/lib/utils";
 
 interface MatchRow {
   id: string;
@@ -103,7 +103,7 @@ export default async function MatchStatsPage({
           {home?.flag_emoji ?? "🏳️"} {homeName} vs {awayName} {away?.flag_emoji ?? "🏳️"}
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)] tabular-nums">
-          {formatDateMx(match.kickoff_at)}
+          {formatMatchDayMx(match.kickoff_at)}
           {match.home_score !== null && match.away_score !== null && (
             <span className="ml-2">
               · Resultado real: <strong className="text-[var(--color-text)]">{match.home_score}-{match.away_score}</strong>

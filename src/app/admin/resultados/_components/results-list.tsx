@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { Check, Loader2, X } from "lucide-react";
 import { ScoreInput } from "@/components/ui/score-input";
-import { cn, formatDateMx } from "@/lib/utils";
+import { cn, formatMatchDayMx } from "@/lib/utils";
 import { saveMatchResult, clearMatchResult } from "../_actions";
 
 export interface ResultMatch {
@@ -175,7 +175,7 @@ function ResultRow({ match }: { match: ResultMatch }) {
   return (
     <div className="p-3 sm:p-4 rounded-[var(--radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)]">
       <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)] mb-2">
-        <span className="tabular-nums">{formatDateMx(match.kickoff_at)}</span>
+        <span className="tabular-nums">{formatMatchDayMx(match.kickoff_at)}</span>
         <StatusIndicator status={status} pending={pending} />
       </div>
 

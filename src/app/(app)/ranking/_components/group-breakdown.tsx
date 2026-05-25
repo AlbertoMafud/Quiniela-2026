@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ChevronDown } from "lucide-react";
-import { cn, formatDateMx } from "@/lib/utils";
+import { cn, formatMatchDayMx } from "@/lib/utils";
 
 export interface StandingRow {
   team_code: string;
@@ -133,7 +133,7 @@ export function GroupBreakdown({
               <div key={m.id} className="bg-[var(--color-bg-tint)]">
                 <div className="px-4 sm:px-5 py-3 flex items-center gap-3 flex-wrap">
                   <span className="text-xs text-[var(--color-text-muted)] tabular-nums w-full sm:w-auto sm:shrink-0">
-                    {formatDateMx(m.kickoff_at)}
+                    {formatMatchDayMx(m.kickoff_at)}
                   </span>
                   <span className="flex-1 min-w-0 text-sm font-medium truncate">
                     {m.home_emoji ?? "🏳️"} {m.home_name}

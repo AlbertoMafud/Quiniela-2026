@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Check, Loader2, Lock } from "lucide-react";
 import { ScoreInput } from "@/components/ui/score-input";
 import { Card } from "@/components/ui/card";
-import { cn, formatDateMx } from "@/lib/utils";
+import { cn, formatMatchDayMx } from "@/lib/utils";
 import { savePredictionAction } from "@/app/(app)/pronosticos/grupos/_actions";
 
 interface Team {
@@ -128,7 +128,7 @@ export function MatchPredictionCard({
     <Card className="p-4 sm:p-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs text-[var(--color-text-muted)] tabular-nums">
-          {formatDateMx(kickoffAt)}
+          {formatMatchDayMx(kickoffAt)}
         </p>
         <StatusBadge status={status} locked={locked} />
       </div>

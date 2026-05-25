@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
-import { formatDateMx } from "@/lib/utils";
+import { formatDateMx, formatMatchDayMx } from "@/lib/utils";
 import { DashboardWelcome } from "@/components/app/dashboard-welcome";
 import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
 
@@ -484,7 +484,7 @@ function NextMatchCard({
               {away?.name ?? match.away_team_code} {away?.flag_emoji ?? "🏳️"}
             </p>
             <p className="mt-1 text-sm text-[var(--color-text-muted)] tabular-nums">
-              {formatDateMx(match.kickoff_at)}
+              {formatMatchDayMx(match.kickoff_at)}
             </p>
           </>
         ) : (
