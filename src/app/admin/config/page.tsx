@@ -53,6 +53,25 @@ export default async function ConfigPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Previsualización de pronósticos públicos (admins)</CardTitle>
+          <CardDescription>
+            Si está activa, los administradores pueden ver los pronósticos en
+            /pronosticos-publicos aun cuando el deadline de cada fase no haya
+            pasado. Útil para validar la vista antes del cierre. Para jugadores
+            normales sigue bloqueado hasta el deadline.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ConfigToggle
+            keyName="public_picks_admin_preview"
+            label="Activar previsualización para admins"
+            enabled={map.get("public_picks_admin_preview") ?? false}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Auto-ingesta de resultados</CardTitle>
           <CardDescription>
             Si está activa, un job automático trae los resultados de los partidos

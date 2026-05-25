@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { adminClient } from "@/lib/supabase/admin";
 import { assertAdmin, logAdminAction } from "@/lib/admin";
 
-const KNOWN_KEYS = ["early_bracket_enabled", "auto_ingest_enabled"] as const;
+const KNOWN_KEYS = [
+  "early_bracket_enabled",
+  "auto_ingest_enabled",
+  "public_picks_admin_preview",
+] as const;
 
 const schema = z.object({
   key: z.enum(KNOWN_KEYS),
@@ -45,5 +49,6 @@ export async function toggleConfig(input: {
   });
   revalidatePath("/admin/config");
   revalidatePath("/pronosticos/bracket-inicio");
+  revalidatePath("/pronosticos-publicos");
   return { ok: true };
 }

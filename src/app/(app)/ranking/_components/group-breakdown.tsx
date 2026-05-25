@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Check, X, Lock } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn, formatDateMx } from "@/lib/utils";
 
 export interface StandingRow {
@@ -29,9 +29,7 @@ export interface MatchRow {
   away_score: number | null;
 }
 
-export interface PickRow {
-  player_id: string;
-  player_name: string;
+export interface MyPick {
   pred_home: number;
   pred_away: number;
   points: number;
@@ -43,23 +41,20 @@ interface Props {
   letter: string;
   standings: StandingRow[];
   matches: MatchRow[];
-  picksByMatch: Record<string, PickRow[]>;
+  myPicksByMatch: Record<string, MyPick | undefined>;
   playedCount: number;
   totalCount: number;
   defaultOpen?: boolean;
-  /** Si true, los pronósticos de otros jugadores se ocultan (cierre no pasó). */
-  picksHidden?: boolean;
 }
 
 export function GroupBreakdown({
   letter,
   standings,
   matches,
-  picksByMatch,
+  myPicksByMatch,
   playedCount,
   totalCount,
   defaultOpen = false,
-  picksHidden = false,
 }: Props) {
   const [open, setOpen] = React.useState(defaultOpen);
 
@@ -87,12 +82,6 @@ export function GroupBreakdown({
 
       {open && (
         <div className="border-t border-[var(--color-border)] divide-y divide-[var(--color-border)]">
-          {picksHidden && (
-            <div className="px-4 sm:px-5 py-2.5 bg-[var(--color-info)]/8 text-xs sm:text-sm text-[var(--color-text-muted)] flex items-center gap-2">
-              <Lock className="h-3.5 w-3.5 text-[var(--color-info)] shrink-0" />
-              Solo ves tus propios pronósticos. Los del resto se mostrarán al cerrar la fase de grupos.
-            </div>
-          )}
           {/* Standings */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-sm">
@@ -136,10 +125,10 @@ export function GroupBreakdown({
             </table>
           </div>
 
-          {/* Partidos con picks */}
+          {/* Partidos del grupo (marcador oficial + TU propio pick). Los picks de otros viven en /pronosticos-publicos */}
           {matches.map((m) => {
-            const picks = picksByMatch[m.id] ?? [];
             const hasResult = m.home_score !== null && m.away_score !== null;
+            const myPick = myPicksByMatch[m.id];
             return (
               <div key={m.id} className="bg-[var(--color-bg-tint)]">
                 <div className="px-4 sm:px-5 py-3 flex items-center gap-3 flex-wrap">
@@ -160,20 +149,28 @@ export function GroupBreakdown({
                     {m.away_name} {m.away_emoji ?? "🏳️"}
                   </span>
                 </div>
-                {picks.length > 0 && (
-                  <div className="px-4 sm:px-5 pb-3 flex flex-wrap gap-1.5">
-                    {picks.map((p) => (
+                {myPick && (
+                  <div className="px-4 sm:px-5 pb-3 -mt-1 flex items-center gap-2 text-xs">
+                    <span className="text-[var(--color-text-subtle)] uppercase tracking-wider font-semibold">
+                      Tu pick
+                    </span>
+                    <span className="tabular-nums font-semibold text-[var(--color-text)]">
+                      {myPick.pred_home} - {myPick.pred_away}
+                    </span>
+                    {hasResult && (
                       <span
-                        key={p.player_id}
-                        className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] text-xs"
+                        className={cn(
+                          "inline-flex items-center px-1.5 h-5 rounded-full text-[10px] font-bold",
+                          myPick.exact
+                            ? "bg-[var(--color-success)] text-white"
+                            : myPick.winner
+                              ? "bg-[var(--color-warning)] text-black"
+                              : "bg-[var(--color-surface-3)] text-[var(--color-text-muted)]",
+                        )}
                       >
-                        <span className="font-medium text-[var(--color-text)]">{p.player_name}</span>
-                        <span className="tabular-nums text-[var(--color-text-muted)]">
-                          {p.pred_home}-{p.pred_away}
-                        </span>
-                        <PickBadge points={p.points} exact={p.exact} winner={p.winner} hasResult={hasResult} />
+                        +{myPick.points} pts
                       </span>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
@@ -182,47 +179,5 @@ export function GroupBreakdown({
         </div>
       )}
     </section>
-  );
-}
-
-function PickBadge({
-  points,
-  exact,
-  winner,
-  hasResult,
-}: {
-  points: number;
-  exact: boolean;
-  winner: boolean;
-  hasResult: boolean;
-}) {
-  if (!hasResult) {
-    return (
-      <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-[var(--color-surface-2)] text-[var(--color-text-subtle)] text-[10px] font-medium">
-        —
-      </span>
-    );
-  }
-  if (exact) {
-    return (
-      <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-[var(--color-success)] text-white text-[10px] font-bold tabular-nums">
-        <Check className="h-2.5 w-2.5" />
-        {points}
-      </span>
-    );
-  }
-  if (winner) {
-    return (
-      <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-[var(--color-warning)] text-black text-[10px] font-bold tabular-nums">
-        <Check className="h-2.5 w-2.5" />
-        {points}
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 h-5 px-2 rounded-full bg-[var(--color-danger)] text-white text-[10px] font-bold tabular-nums">
-      <X className="h-2.5 w-2.5" />
-      0
-    </span>
   );
 }

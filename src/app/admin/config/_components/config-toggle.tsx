@@ -6,7 +6,10 @@ import { cn } from "@/lib/utils";
 import { toggleConfig } from "../_actions";
 
 interface ConfigToggleProps {
-  keyName: "early_bracket_enabled" | "auto_ingest_enabled";
+  keyName:
+    | "early_bracket_enabled"
+    | "auto_ingest_enabled"
+    | "public_picks_admin_preview";
   label: string;
   enabled: boolean;
   disabled?: boolean;

@@ -6,19 +6,32 @@ import { adminClient } from "@/lib/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateMx, cn } from "@/lib/utils";
 import { scoreMatch, type ScoringParams } from "@/lib/scoring";
+import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
+
+const VALID_ROUNDS: Round[] = ["r32", "r16", "qf", "sf", "final"];
+const ROUND_REVEAL_STAGE: Record<Round, string> = {
+  r32: "r32_scores",
+  r16: "r16_scores",
+  qf: "qf_scores",
+  sf: "sf_scores",
+  final: "final_scores",
+};
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ grupo: string }>;
+  params: Promise<{ ronda: string }>;
 }) {
-  const { grupo } = await params;
-  return { title: `Grupo ${grupo.toUpperCase()} · Pronósticos públicos` };
+  const { ronda } = await params;
+  const label = VALID_ROUNDS.includes(ronda as Round)
+    ? ROUND_LABELS[ronda as Round]
+    : ronda;
+  return { title: `${label} · Pronósticos públicos` };
 }
 
 interface MatchRow {
   id: string;
-  group_letter: string | null;
+  stage: string;
   kickoff_at: string;
   home_team_code: string | null;
   away_team_code: string | null;
@@ -35,17 +48,25 @@ interface PredRow {
 interface TeamRow { code: string; name: string; flag_emoji: string | null }
 interface DeadlineRow { deadline_at: string }
 
-export default async function GrupoPage({
+export default async function RondaPage({
   params,
 }: {
-  params: Promise<{ grupo: string }>;
+  params: Promise<{ ronda: string }>;
 }) {
-  const { grupo } = await params;
-  const letter = grupo.toUpperCase();
-  if (!/^[A-L]$/.test(letter)) notFound();
+  const { ronda } = await params;
+  if (!VALID_ROUNDS.includes(ronda as Round)) notFound();
+  const round = ronda as Round;
+  const revealStage = ROUND_REVEAL_STAGE[round];
 
   const session = await getSession();
   const supabase = adminClient();
+
+  // Primero traemos los IDs de los matches de esta ronda para el `.in()` de predictions
+  const { data: roundMatchIds } = await supabase
+    .from("matches")
+    .select("id")
+    .eq("stage", round);
+  const matchIds = (roundMatchIds ?? []).map((m: { id: string }) => m.id);
 
   const [
     { data: matches },
@@ -57,51 +78,44 @@ export default async function GrupoPage({
     { data: previewConfig },
     { data: scoringRow },
   ] = await Promise.all([
-      supabase
-        .from("matches")
-        .select(
-          "id, group_letter, kickoff_at, home_team_code, away_team_code, home_score, away_score",
-        )
-        .eq("stage", "group")
-        .eq("group_letter", letter)
-        .order("kickoff_at", { ascending: true }),
-      supabase.from("players").select("id, name").order("name", { ascending: true }),
-      supabase
-        .from("predictions")
-        .select("match_id, player_id, home_score, away_score")
-        .in(
-          "match_id",
-          ((
-            await supabase
-              .from("matches")
-              .select("id")
-              .eq("group_letter", letter)
-          ).data ?? []).map((m: { id: string }) => m.id),
-        ),
-      supabase.from("teams").select("code, name, flag_emoji"),
-      supabase
-        .from("deadlines")
-        .select("deadline_at")
-        .eq("stage", "group_stage")
-        .maybeSingle<DeadlineRow>(),
-      session
-        ? supabase
-            .from("players")
-            .select("is_admin")
-            .eq("id", session.playerId)
-            .maybeSingle<{ is_admin: boolean }>()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from("admin_config")
-        .select("value")
-        .eq("key", "public_picks_admin_preview")
-        .maybeSingle<{ value: unknown }>(),
-      supabase
-        .from("scoring_params")
-        .select("exact_score_pts, correct_winner_pts")
-        .eq("id", 1)
-        .maybeSingle<Pick<ScoringParams, "exact_score_pts" | "correct_winner_pts">>(),
-    ]);
+    supabase
+      .from("matches")
+      .select(
+        "id, stage, kickoff_at, home_team_code, away_team_code, home_score, away_score",
+      )
+      .eq("stage", round)
+      .order("kickoff_at", { ascending: true }),
+    supabase.from("players").select("id, name").order("name", { ascending: true }),
+    matchIds.length > 0
+      ? supabase
+          .from("predictions")
+          .select("match_id, player_id, home_score, away_score")
+          .in("match_id", matchIds)
+      : Promise.resolve({ data: [] }),
+    supabase.from("teams").select("code, name, flag_emoji"),
+    supabase
+      .from("deadlines")
+      .select("deadline_at")
+      .eq("stage", revealStage)
+      .maybeSingle<DeadlineRow>(),
+    session
+      ? supabase
+          .from("players")
+          .select("is_admin")
+          .eq("id", session.playerId)
+          .maybeSingle<{ is_admin: boolean }>()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("admin_config")
+      .select("value")
+      .eq("key", "public_picks_admin_preview")
+      .maybeSingle<{ value: unknown }>(),
+    supabase
+      .from("scoring_params")
+      .select("exact_score_pts, correct_winner_pts")
+      .eq("id", 1)
+      .maybeSingle<Pick<ScoringParams, "exact_score_pts" | "correct_winner_pts">>(),
+  ]);
 
   const isAdmin = mePlayer?.is_admin === true;
   const adminPreviewEnabled = Boolean(previewConfig?.value);
@@ -118,9 +132,7 @@ export default async function GrupoPage({
   const revealed = canPreview || deadlinePassed;
   const previewBanner = canPreview && !deadlinePassed;
 
-  if (matchRows.length === 0) notFound();
-
-  // predictions indexed by match -> player -> {home, away}
+  // predictions indexed by match -> player
   const predsByMatch = new Map<string, Map<string, { home: number; away: number }>>();
   for (const p of predRows) {
     const inner = predsByMatch.get(p.match_id) ?? new Map();
@@ -135,15 +147,17 @@ export default async function GrupoPage({
           href="/pronosticos-publicos"
           className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Todos los grupos
+          <ArrowLeft className="h-3.5 w-3.5" /> Pronósticos públicos
         </Link>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-[clamp(1.75rem,4vw,2.25rem)] font-semibold tracking-tight">
-          Grupo {letter}
+          {ROUND_LABELS[round]}
         </h1>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          {revealed
-            ? `${matchRows.length} partidos · ${playerRows.length} jugadores con pronóstico posible.`
-            : "Los pronósticos se mostrarán al pasar el deadline de fase de grupos."}
+          {matchRows.length === 0
+            ? "Aún no hay partidos cargados para esta ronda."
+            : revealed
+              ? `${matchRows.length} partidos · ${playerRows.length} jugadores con pronóstico posible.`
+              : "Los pronósticos se mostrarán al cerrar los marcadores de esta ronda."}
         </p>
       </header>
 
@@ -160,11 +174,18 @@ export default async function GrupoPage({
         </Card>
       )}
 
-      {!revealed ? (
+      {matchRows.length === 0 ? (
         <Card style={{ background: "var(--color-surface-tint-accent)" }}>
           <CardContent className="py-4 text-sm text-[var(--color-text)]">
-            Aún no se pueden ver los pronósticos del grupo. Vuelve después del{" "}
-            {deadline ? formatDateMx(deadline.deadline_at) : "deadline de grupos"}.
+            Esta ronda todavía no tiene partidos cargados. Vuelve cuando se conozcan
+            los equipos que avanzaron.
+          </CardContent>
+        </Card>
+      ) : !revealed ? (
+        <Card style={{ background: "var(--color-surface-tint-accent)" }}>
+          <CardContent className="py-4 text-sm text-[var(--color-text)]">
+            Aún no se pueden ver los pronósticos de esta ronda. Vuelve después del{" "}
+            {deadline ? formatDateMx(deadline.deadline_at) : `cierre de marcadores`}.
           </CardContent>
         </Card>
       ) : (
@@ -179,8 +200,8 @@ export default async function GrupoPage({
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <CardTitle className="text-base sm:text-lg">
-                      {home?.flag_emoji ?? "🏳️"} {home?.name ?? "?"} vs{" "}
-                      {away?.name ?? "?"} {away?.flag_emoji ?? "🏳️"}
+                      {home?.flag_emoji ?? "🏳️"} {home?.name ?? "Por definir"} vs{" "}
+                      {away?.name ?? "Por definir"} {away?.flag_emoji ?? "🏳️"}
                     </CardTitle>
                     {hasResult && (
                       <span className="shrink-0 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-sm font-bold tabular-nums">

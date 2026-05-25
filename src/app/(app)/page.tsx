@@ -1,12 +1,29 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { Trophy, Medal, Award, Target, Sparkles, Goal, ChartLine, Clock, TrendingUp, Users } from "lucide-react";
+import { Trophy, Medal, Award, Target, Sparkles, Goal, ChartLine, Clock, TrendingUp, Users, CheckCircle2, Lock } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { formatDateMx } from "@/lib/utils";
 import { DashboardWelcome } from "@/components/app/dashboard-welcome";
-import { ROUND_LABELS } from "@/lib/bracket-structure";
+import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
+
+const ROUND_SIZE: Record<Round, number> = {
+  r32: 16,
+  r16: 8,
+  qf: 4,
+  sf: 2,
+  final: 1,
+};
+const ROUND_ORDER: Round[] = ["r32", "r16", "qf", "sf", "final"];
+const ROUND_HREF: Record<Round, string> = {
+  r32: "/pronosticos/eliminatorias/r32",
+  r16: "/pronosticos/eliminatorias/r16",
+  qf: "/pronosticos/eliminatorias/qf",
+  sf: "/pronosticos/eliminatorias/sf",
+  final: "/pronosticos/eliminatorias/final",
+};
 
 interface PlayerRow { id: string; name: string }
 interface DeadlineRow { stage: string; deadline_at: string }
@@ -59,6 +76,9 @@ export default async function DashboardPage() {
     { data: recentResults },
     { data: teams },
     { data: earlyEnabled },
+    { data: allMatchStages },
+    { data: myPredsWithStage },
+    { data: myBracketByRoundRaw },
   ] = await Promise.all([
     supabase
       .from("players")
@@ -101,6 +121,15 @@ export default async function DashboardPage() {
       .select("value")
       .eq("key", "early_bracket_enabled")
       .maybeSingle<{ value: unknown }>(),
+    supabase.from("matches").select("stage"),
+    supabase
+      .from("predictions")
+      .select("match_id, matches(stage)")
+      .eq("player_id", session.playerId),
+    supabase
+      .from("bracket_picks")
+      .select("round")
+      .eq("player_id", session.playerId),
   ]);
 
   const teamMap = new Map(((teams ?? []) as TeamRow[]).map((t) => [t.code, t]));
@@ -118,9 +147,46 @@ export default async function DashboardPage() {
   const bracketTotal = 31;
   const bracketDone = myBracketPicks ?? 0;
 
-  const overallDone = groupDone + thirdsDone + bracketDone;
-  const overallTotal = groupTotal + thirdsTotal + bracketTotal;
-  const overallPct = Math.round((overallDone / overallTotal) * 100);
+  // Conteos por ronda eliminatoria
+  const matchesByStage = new Map<string, number>();
+  for (const row of (allMatchStages ?? []) as Array<{ stage: string }>) {
+    matchesByStage.set(row.stage, (matchesByStage.get(row.stage) ?? 0) + 1);
+  }
+
+  type PredWithStage = { match_id: string; matches: { stage: string } | { stage: string }[] | null };
+  const myScoresByRound: Record<Round, number> = { r32: 0, r16: 0, qf: 0, sf: 0, final: 0 };
+  for (const row of (myPredsWithStage ?? []) as PredWithStage[]) {
+    const m = Array.isArray(row.matches) ? row.matches[0] : row.matches;
+    const stage = m?.stage;
+    if (stage && stage in myScoresByRound) {
+      myScoresByRound[stage as Round] += 1;
+    }
+  }
+
+  const myBracketByRound: Record<Round, number> = { r32: 0, r16: 0, qf: 0, sf: 0, final: 0 };
+  for (const row of (myBracketByRoundRaw ?? []) as Array<{ round: string }>) {
+    if (row.round in myBracketByRound) {
+      myBracketByRound[row.round as Round] += 1;
+    }
+  }
+
+  const phase1Done = groupDone + thirdsDone + (earlyBracketOn ? bracketDone : 0);
+  const phase1Total = groupTotal + thirdsTotal + (earlyBracketOn ? bracketTotal : 0);
+  const phase1Complete = phase1Total > 0 && phase1Done >= phase1Total;
+
+  const phase2Done = ROUND_ORDER.reduce(
+    (acc, r) => acc + myBracketByRound[r] + myScoresByRound[r],
+    0,
+  );
+  const phase2Total = ROUND_ORDER.reduce((acc, r) => {
+    const picksTotal = ROUND_SIZE[r];
+    const scoresTotal = matchesByStage.get(r) ?? 0;
+    return acc + picksTotal + scoresTotal;
+  }, 0);
+
+  const overallDone = phase1Done + phase2Done;
+  const overallTotal = phase1Total + phase2Total;
+  const overallPct = overallTotal > 0 ? Math.round((overallDone / overallTotal) * 100) : 0;
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -145,50 +211,98 @@ export default async function DashboardPage() {
               Tu progreso
             </CardTitle>
             <CardDescription>
-              Lo que llevas en cada sección de la quiniela.
+              Avance por fase del torneo.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <ProgressBar
-              label="Pronósticos de grupos"
-              done={groupDone}
-              total={groupTotal}
-              href="/pronosticos/grupos"
-              icon={Target}
-              infoTitle="Pronósticos de fase de grupos"
-              infoDescription="Mete tu marcador exacto para cada uno de los 72 partidos de la primera ronda (12 grupos × 6 partidos). Ganas 3 pts por marcador exacto y 2 pts por adivinar al ganador (o empate). Puedes editar hasta que pase el deadline."
-            />
-            <ProgressBar
-              label="Mejores terceros"
-              done={thirdsDone}
-              total={thirdsTotal}
-              href="/pronosticos/terceros"
-              icon={Sparkles}
-              infoTitle="Mejores terceros"
-              infoDescription="Pasan a R32 los top-2 de cada grupo (24) + los 8 mejores terceros lugares (de los 12 grupos). Aquí escoges cuáles 8 terceros de tus pronósticos crees que avanzarán. Necesitas haber completado los 72 pronósticos de grupos primero."
-            />
-            {earlyBracketOn && (
+          <CardContent className="space-y-5">
+            <PhaseBlock
+              title="Fase 1 · Antes del torneo"
+              done={phase1Done}
+              total={phase1Total}
+              complete={phase1Complete}
+            >
               <ProgressBar
-                label="Cuadro desde el inicio"
-                done={bracketDone}
-                total={bracketTotal}
-                href="/pronosticos/bracket-inicio"
-                icon={Trophy}
-                accent
-                infoTitle="Cuadro desde el inicio (opcional)"
-                infoDescription="Si el admin lo activa, llenas TODO el cuadro de eliminatorias desde antes del Mundial usando tus pronósticos de grupos + 8 terceros. Por cada equipo que llegue realmente a esa ronda ganas bonus: 1 pt en 16avos, 2 en octavos, 3 en cuartos, 4 en semifinales, 5 en la final."
+                label="Pronósticos de grupos"
+                done={groupDone}
+                total={groupTotal}
+                href="/pronosticos/grupos"
+                icon={Target}
+                infoTitle="Pronósticos de fase de grupos"
+                infoDescription="Mete tu marcador exacto para cada uno de los 72 partidos de la primera ronda (12 grupos × 6 partidos). Ganas 3 pts por marcador exacto y 2 pts por adivinar al ganador (o empate). Puedes editar hasta que pase el deadline."
               />
-            )}
-            <ProgressBar
-              label="Pronósticos de eliminatorias"
-              done={0}
-              total={31}
-              href="/pronosticos/eliminatorias/r32"
-              icon={Goal}
-              hint="Se habilita cuando los partidos de cada ronda estén cargados"
-              infoTitle="Marcadores de eliminatorias"
-              infoDescription="Cada ronda (32vos → final) tienes que meter los marcadores exactos de cada partido para ganar puntos. Mismo sistema: 3 pts marcador exacto, 2 pts ganador correcto. Se va habilitando cada ronda cuando se conozcan los equipos reales que pasan."
-            />
+              <ProgressBar
+                label="Mejores terceros"
+                done={thirdsDone}
+                total={thirdsTotal}
+                href="/pronosticos/terceros"
+                icon={Sparkles}
+                infoTitle="Mejores terceros"
+                infoDescription="Pasan a R32 los top-2 de cada grupo (24) + los 8 mejores terceros lugares (de los 12 grupos). Aquí escoges cuáles 8 terceros de tus pronósticos crees que avanzarán. Necesitas haber completado los 72 pronósticos de grupos primero."
+              />
+              {earlyBracketOn && (
+                <ProgressBar
+                  label="Cuadro desde el inicio"
+                  done={bracketDone}
+                  total={bracketTotal}
+                  href="/pronosticos/bracket-inicio"
+                  icon={Trophy}
+                  accent
+                  infoTitle="Cuadro desde el inicio (opcional)"
+                  infoDescription="Si el admin lo activa, llenas TODO el cuadro de eliminatorias desde antes del Mundial usando tus pronósticos de grupos + 8 terceros. Por cada equipo que llegue realmente a esa ronda ganas bonus: 1 pt en 16avos, 2 en octavos, 3 en cuartos, 4 en semifinales, 5 en la final."
+                />
+              )}
+            </PhaseBlock>
+
+            <PhaseBlock
+              title="Fase 2 · Eliminatorias"
+              done={phase2Done}
+              total={phase2Total}
+              complete={phase2Total > 0 && phase2Done >= phase2Total}
+            >
+              <div className="rounded-[var(--radius-md)] p-3 sm:p-4 bg-[var(--color-surface-2)] border border-[var(--color-accent)]/20">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-text)]">
+                    <Trophy className="h-4 w-4 text-[var(--color-accent)]" />
+                    Cuadro de eliminatorias
+                  </span>
+                  <span
+                    className={
+                      bracketDone >= bracketTotal
+                        ? "text-xs font-semibold text-[var(--color-success)] tabular-nums"
+                        : "text-xs font-medium text-[var(--color-text-muted)] tabular-nums"
+                    }
+                  >
+                    {bracketDone} / {bracketTotal} slots elegidos
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-[var(--color-bg)] overflow-hidden">
+                  <div
+                    className={
+                      bracketDone >= bracketTotal
+                        ? "h-full bg-[var(--color-success)] transition-all duration-500"
+                        : "h-full bg-[var(--color-accent)] transition-all duration-500"
+                    }
+                    style={{
+                      width: `${bracketTotal > 0 ? Math.round((bracketDone / bracketTotal) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-[var(--color-text-subtle)]">
+                  El cuadro es un juego paralelo a los marcadores. Eliges qué equipo avanza en cada slot y ganas puntos independientes por cada acierto.
+                </p>
+              </div>
+
+              {ROUND_ORDER.map((r) => (
+                <RoundProgress
+                  key={r}
+                  round={r}
+                  selDone={myBracketByRound[r]}
+                  selTotal={ROUND_SIZE[r]}
+                  scoresDone={myScoresByRound[r]}
+                  scoresTotal={matchesByStage.get(r) ?? 0}
+                />
+              ))}
+            </PhaseBlock>
           </CardContent>
         </Card>
 
@@ -491,6 +605,153 @@ function ProgressBar({
       {hint && (
         <p className="mt-2 text-xs text-[var(--color-text-subtle)]">{hint}</p>
       )}
+    </div>
+  );
+}
+
+function PhaseBlock({
+  title,
+  done,
+  total,
+  complete,
+  children,
+}: {
+  title: string;
+  done: number;
+  total: number;
+  complete: boolean;
+  children: ReactNode;
+}) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2">
+          {complete && (
+            <CheckCircle2 className="h-4 w-4 text-[var(--color-success)]" />
+          )}
+          {title}
+        </h3>
+        <span
+          className={
+            complete
+              ? "text-xs font-semibold text-[var(--color-success)] tabular-nums"
+              : "text-xs font-medium text-[var(--color-text-muted)] tabular-nums"
+          }
+        >
+          {done} / {total} ({pct}%)
+        </span>
+      </div>
+      <div className="space-y-2.5">{children}</div>
+    </div>
+  );
+}
+
+function RoundProgress({
+  round,
+  selDone,
+  selTotal,
+  scoresDone,
+  scoresTotal,
+}: {
+  round: Round;
+  selDone: number;
+  selTotal: number;
+  scoresDone: number;
+  scoresTotal: number;
+}) {
+  const label = ROUND_LABELS[round];
+  const href = ROUND_HREF[round];
+  const selPct = selTotal > 0 ? Math.round((selDone / selTotal) * 100) : 0;
+  const scoresLocked = scoresTotal === 0;
+  const scoresPct = scoresTotal > 0 ? Math.round((scoresDone / scoresTotal) * 100) : 0;
+  const selComplete = selTotal > 0 && selDone >= selTotal;
+  const scoresComplete = scoresTotal > 0 && scoresDone >= scoresTotal;
+
+  return (
+    <div className="rounded-[var(--radius-md)] p-3 sm:p-4 bg-[var(--color-surface-2)]">
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <Link href={href} className="flex items-center gap-2 min-w-0 flex-1 group">
+          <Goal className="h-4 w-4 text-[var(--color-accent)] shrink-0" />
+          <span className="font-medium text-sm text-[var(--color-text)] truncate group-hover:underline">
+            {label}
+          </span>
+        </Link>
+      </div>
+
+      <div className="space-y-2">
+        <MiniMetric
+          label="Cuadro (equipo que avanza)"
+          done={selDone}
+          total={selTotal}
+          pct={selPct}
+          complete={selComplete}
+          colorClass="bg-[var(--color-primary)]"
+        />
+        {scoresLocked ? (
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 text-[var(--color-text-subtle)]">
+              <Lock className="h-3 w-3" />
+              Marcadores
+            </span>
+            <span className="text-[var(--color-text-subtle)]">Por desbloquear</span>
+          </div>
+        ) : (
+          <MiniMetric
+            label="Marcadores"
+            done={scoresDone}
+            total={scoresTotal}
+            pct={scoresPct}
+            complete={scoresComplete}
+            colorClass="bg-[var(--color-accent)]"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MiniMetric({
+  label,
+  done,
+  total,
+  pct,
+  complete,
+  colorClass,
+}: {
+  label: string;
+  done: number;
+  total: number;
+  pct: number;
+  complete: boolean;
+  colorClass: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+          {label}
+        </span>
+        <span
+          className={
+            complete
+              ? "text-xs font-semibold text-[var(--color-success)] tabular-nums"
+              : "text-xs font-medium text-[var(--color-text-muted)] tabular-nums"
+          }
+        >
+          {done} / {total}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-[var(--color-bg)] overflow-hidden">
+        <div
+          className={
+            complete
+              ? "h-full bg-[var(--color-success)] transition-all duration-500"
+              : `h-full ${colorClass} transition-all duration-500`
+          }
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }

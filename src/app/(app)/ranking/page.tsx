@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Trophy, Medal, Award, Globe, Sparkles, Goal } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
@@ -12,23 +13,22 @@ import { cn } from "@/lib/utils";
 import { computeStandings, bestThirds, type MatchScore } from "@/lib/standings";
 import {
   computeTotals,
-  breakdownByMatch,
   type MatchData,
   type PredictionData,
   type PlayerData,
   type ThirdPickData,
 } from "@/lib/ranking-calculator";
-import type { ScoringParams } from "@/lib/scoring";
+import { scoreMatch, type ScoringParams } from "@/lib/scoring";
 import {
   GroupBreakdown,
   type StandingRow as UIStandingRow,
   type MatchRow as UIMatchRow,
-  type PickRow as UIPickRow,
+  type MyPick as GroupMyPick,
 } from "./_components/group-breakdown";
 import {
   RoundBreakdown,
   type RoundMatchRow,
-  type RoundPickRow,
+  type MyPick as RoundMyPick,
 } from "./_components/round-breakdown";
 import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
 
@@ -73,8 +73,6 @@ export default async function RankingPage() {
     { data: teams },
     { data: thirdPicks },
     { data: scoringRow },
-    { data: deadlines },
-    { data: mePlayer },
   ] = await Promise.all([
     supabase.from("players").select("id, name").order("name"),
     supabase
@@ -85,34 +83,7 @@ export default async function RankingPage() {
     supabase.from("teams").select("code, name, group_letter, flag_emoji"),
     supabase.from("third_picks").select("player_id, team_code"),
     supabase.from("scoring_params").select("*").eq("id", 1).maybeSingle<ScoringParams>(),
-    supabase.from("deadlines").select("stage, deadline_at"),
-    supabase
-      .from("players")
-      .select("is_admin")
-      .eq("id", session.playerId)
-      .maybeSingle<{ is_admin: boolean }>(),
   ]);
-
-  const isAdmin = mePlayer?.is_admin === true;
-  const now = new Date();
-  const deadlineByStage = new Map<string, Date>();
-  for (const d of (deadlines ?? []) as Array<{ stage: string; deadline_at: string }>) {
-    deadlineByStage.set(d.stage, new Date(d.deadline_at));
-  }
-  function isStageRevealed(stageKey: string): boolean {
-    if (isAdmin) return true;
-    const dl = deadlineByStage.get(stageKey);
-    if (!dl) return false; // sin deadline configurado → mantenemos privacidad
-    return now >= dl;
-  }
-  const groupRevealed = isStageRevealed("group_stage");
-  const roundRevealed: Record<Round, boolean> = {
-    r32: isStageRevealed("r32_scores"),
-    r16: isStageRevealed("r16_scores"),
-    qf: isStageRevealed("qf_scores"),
-    sf: isStageRevealed("sf_scores"),
-    final: isStageRevealed("final_scores"),
-  };
 
   const playerList = (players ?? []) as PlayerDB[];
   const matchList = (matches ?? []) as MatchDB[];
@@ -190,10 +161,31 @@ export default async function RankingPage() {
     params,
   );
 
-  // Breakdown por match (incluye nombre de jugador en cada pick)
-  const playersById = new Map(playerList.map((p) => [p.id, p]));
   const teamsByCode = new Map(teamList.map((t) => [t.code, t]));
-  const matchPredsMap = breakdownByMatch(matchDataForCalc, predDataForCalc, params);
+
+  // Construir mapa de MI pronóstico por match (para mostrar en breakdowns como info personal)
+  const myPicksByMatch = new Map<string, GroupMyPick>();
+  for (const p of predList) {
+    if (p.player_id !== session.playerId) continue;
+    const m = matchList.find((mm) => mm.id === p.match_id);
+    const hasResult = m && m.home_score !== null && m.away_score !== null;
+    const points = hasResult
+      ? scoreMatch(
+          { home: p.home_score, away: p.away_score },
+          { home: m.home_score!, away: m.away_score! },
+          params,
+        )
+      : 0;
+    const exact = !!hasResult && points === params.exact_score_pts;
+    const winner = !!hasResult && !exact && points === params.correct_winner_pts;
+    myPicksByMatch.set(p.match_id, {
+      pred_home: p.home_score,
+      pred_away: p.away_score,
+      points,
+      exact,
+      winner,
+    });
+  }
 
   // Construir grupos con sus standings y matches
   const groupLetters = Array.from(
@@ -207,7 +199,11 @@ export default async function RankingPage() {
           Ranking
         </h1>
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
-          {totals.length} jugador{totals.length === 1 ? "" : "es"} compitiendo. Toca un grupo para ver el desglose por partido.
+          {totals.length} jugador{totals.length === 1 ? "" : "es"} compitiendo. Los pronósticos de cada jugador se revelan en{" "}
+          <Link href="/pronosticos-publicos" className="underline text-[var(--color-primary)]">
+            Públicos
+          </Link>{" "}
+          al cerrar cada fase.
         </p>
       </header>
 
@@ -216,10 +212,7 @@ export default async function RankingPage() {
       <EliminationsSection
         matchList={matchList}
         teamsByCode={teamsByCode}
-        playersById={playersById}
-        matchPredsMap={matchPredsMap}
-        roundRevealed={roundRevealed}
-        mePlayerId={session.playerId}
+        myPicksByMatch={myPicksByMatch}
       />
 
       <section className="space-y-3">
@@ -268,29 +261,14 @@ export default async function RankingPage() {
             };
           });
 
-          // Picks por match — antes del cierre solo se ven los míos
-          const picksByMatch: Record<string, UIPickRow[]> = {};
-          for (const m of groupMatches) {
-            const list = matchPredsMap.get(m.id) ?? [];
-            const visible = groupRevealed
-              ? list
-              : list.filter((row) => row.player_id === session.playerId);
-            picksByMatch[m.id] = visible
-              .map((row) => ({
-                player_id: row.player_id,
-                player_name: playersById.get(row.player_id)?.name ?? "?",
-                pred_home: row.pred_home,
-                pred_away: row.pred_away,
-                points: row.points,
-                exact: row.exact,
-                winner: row.winner,
-              }))
-              .sort((a, b) => b.points - a.points);
-          }
-
           const playedCount = groupMatches.filter(
             (m) => m.home_score !== null && m.away_score !== null,
           ).length;
+
+          const myPicksForGroup: Record<string, GroupMyPick | undefined> = {};
+          for (const m of groupMatches) {
+            myPicksForGroup[m.id] = myPicksByMatch.get(m.id);
+          }
 
           return (
             <GroupBreakdown
@@ -298,11 +276,10 @@ export default async function RankingPage() {
               letter={letter}
               standings={groupStandings}
               matches={uiMatches}
-              picksByMatch={picksByMatch}
+              myPicksByMatch={myPicksForGroup}
               playedCount={playedCount}
               totalCount={groupMatches.length}
               defaultOpen={idx === 0}
-              picksHidden={!groupRevealed}
             />
           );
         })}
@@ -314,17 +291,11 @@ export default async function RankingPage() {
 function EliminationsSection({
   matchList,
   teamsByCode,
-  playersById,
-  matchPredsMap,
-  roundRevealed,
-  mePlayerId,
+  myPicksByMatch,
 }: {
   matchList: MatchDB[];
   teamsByCode: Map<string, TeamDB>;
-  playersById: Map<string, PlayerDB>;
-  matchPredsMap: ReturnType<typeof breakdownByMatch>;
-  roundRevealed: Record<Round, boolean>;
-  mePlayerId: string;
+  myPicksByMatch: Map<string, RoundMyPick>;
 }) {
   const ROUNDS_ORDER: Round[] = ["r32", "r16", "qf", "sf", "final"];
   const elimMatches = matchList.filter((m) => m.stage !== "group");
@@ -356,40 +327,24 @@ function EliminationsSection({
           };
         });
 
-        const revealed = roundRevealed[round];
-        const picksByMatch: Record<string, RoundPickRow[]> = {};
-        for (const m of roundMatches) {
-          const list = matchPredsMap.get(m.id) ?? [];
-          const visible = revealed
-            ? list
-            : list.filter((row) => row.player_id === mePlayerId);
-          picksByMatch[m.id] = visible
-            .map((row) => ({
-              player_id: row.player_id,
-              player_name: playersById.get(row.player_id)?.name ?? "?",
-              pred_home: row.pred_home,
-              pred_away: row.pred_away,
-              points: row.points,
-              exact: row.exact,
-              winner: row.winner,
-            }))
-            .sort((a, b) => b.points - a.points);
-        }
-
         const playedCount = roundMatches.filter(
           (m) => m.home_score !== null && m.away_score !== null,
         ).length;
+
+        const myPicksForRound: Record<string, RoundMyPick | undefined> = {};
+        for (const m of roundMatches) {
+          myPicksForRound[m.id] = myPicksByMatch.get(m.id);
+        }
 
         return (
           <RoundBreakdown
             key={round}
             label={ROUND_LABELS[round]}
             matches={uiMatches}
-            picksByMatch={picksByMatch}
+            myPicksByMatch={myPicksForRound}
             playedCount={playedCount}
             totalCount={roundMatches.length}
             defaultOpen={false}
-            picksHidden={!revealed}
           />
         );
       })}
@@ -428,7 +383,7 @@ function SummaryTable({
       <CardHeader>
         <CardTitle>Tabla general</CardTitle>
         <CardDescription>
-          Desglose por categoría. Toca cada grupo abajo para ver picks partido por partido.
+          Desglose por categoría. Abajo encontrarás standings de cada grupo y resultados de eliminatorias.
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0 sm:px-6">
