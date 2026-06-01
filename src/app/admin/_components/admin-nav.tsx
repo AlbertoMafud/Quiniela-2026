@@ -8,6 +8,7 @@ import {
   Sliders,
   Calendar,
   Users,
+  BarChart2,
   Settings2,
   Wrench,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const LINKS = [
   { href: "/admin/scoring", label: "Puntos", icon: Sliders },
   { href: "/admin/deadlines", label: "Cierres", icon: Calendar },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users },
+  { href: "/admin/progreso", label: "Progreso", icon: BarChart2 },
   { href: "/admin/config", label: "Config", icon: Settings2 },
   { href: "/admin/herramientas", label: "Herramientas", icon: Wrench },
 ];
