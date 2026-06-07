@@ -4,12 +4,54 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
+import { computeStandings, pickThirds, type MatchScore } from "@/lib/standings";
 
 const schema = z.object({
   teamCodes: z.array(z.string().min(1)).length(8, "Debes seleccionar 8 equipos."),
 });
 
 export type SaveThirdsResult = { ok: boolean; error?: string };
+
+interface TeamRow { code: string; name: string; group_letter: string }
+interface MatchRow { id: string; home_team_code: string | null; away_team_code: string | null }
+interface PredRow { match_id: string; home_score: number; away_score: number }
+
+/**
+ * Recalcula los 12 terceros elegibles del jugador a partir de SUS pronósticos
+ * actuales (mismo cálculo que la página). Sirve para rechazar picks huérfanos:
+ * un equipo que ya no quedaría 3° de su grupo no puede guardarse como tercero.
+ */
+async function eligibleThirdCodes(playerId: string): Promise<Set<string>> {
+  const supabase = adminClient();
+  const [{ data: teams }, { data: matches }, { data: preds }] = await Promise.all([
+    supabase.from("teams").select("code, name, group_letter"),
+    supabase
+      .from("matches")
+      .select("id, home_team_code, away_team_code")
+      .eq("stage", "group"),
+    supabase
+      .from("predictions")
+      .select("match_id, home_score, away_score")
+      .eq("player_id", playerId),
+  ]);
+
+  const predMap = new Map(((preds ?? []) as PredRow[]).map((p) => [p.match_id, p]));
+  const matchScores: MatchScore[] = [];
+  for (const m of (matches ?? []) as MatchRow[]) {
+    if (!m.home_team_code || !m.away_team_code) continue;
+    const p = predMap.get(m.id);
+    if (!p) continue;
+    matchScores.push({
+      home_team_code: m.home_team_code,
+      away_team_code: m.away_team_code,
+      home_score: p.home_score,
+      away_score: p.away_score,
+    });
+  }
+
+  const standings = computeStandings((teams ?? []) as TeamRow[], matchScores);
+  return new Set(pickThirds(standings).map((r) => r.team_code));
+}
 
 export async function saveThirdsAction(
   teamCodes: string[],
@@ -33,6 +75,19 @@ export async function saveThirdsAction(
 
   if (deadline && new Date(deadline.deadline_at) <= new Date()) {
     return { ok: false, error: "El deadline para terceros ya pasó." };
+  }
+
+  // Validar elegibilidad: cada código debe ser hoy un tercero del jugador.
+  // Evita guardar picks huérfanos (equipos que ya no quedarían 3° de su grupo).
+  const eligible = await eligibleThirdCodes(session.playerId);
+  const invalid = parsed.data.teamCodes.filter((c) => !eligible.has(c));
+  if (invalid.length > 0) {
+    return {
+      ok: false,
+      error:
+        "Algunos equipos ya no son terceros según tus pronósticos actuales. " +
+        "Recarga la página y vuelve a elegir.",
+    };
   }
 
   // Reemplazar selección completa: borrar y reinsertar.

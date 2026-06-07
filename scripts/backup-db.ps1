@@ -8,10 +8,12 @@
 #      - Connection string -> "URI" mode -> copia toda la cadena
 #      - Asegurate de marcarla "Use connection pooling" en OFF (port 5432, no 6543)
 #      - Reemplaza [YOUR-PASSWORD] por tu password real
-#   3) Corre:
-#      pwsh .\scripts\backup-db.ps1
+#   3) Corre (Windows PowerShell 5.1 o 7):
+#      .\scripts\backup-db.ps1
 #
-# Output: backups\quiniela-YYYY-MM-DD_HHmm.sql (carpeta gitignored)
+# Output: backups\quiniela-YYYY-MM-DD_HHmm.sql (UTF-8, solo schema public).
+# Nota: pg_dump escribe el archivo con --file (UTF-8 correcto). NO usar `>`,
+#       que en PowerShell 5.1 lo guarda en UTF-16 y corrompe acentos/emojis.
 
 $ErrorActionPreference = "Stop"
 
@@ -39,7 +41,7 @@ $stamp = Get-Date -Format "yyyy-MM-dd_HHmm"
 $outFile = Join-Path $backupDir "quiniela-$stamp.sql"
 
 Write-Host "Generando backup en $outFile ..."
-& $pgDump --no-owner --no-acl --clean --if-exists --quote-all-identifiers $env:SUPABASE_DB_URL > $outFile
+& $pgDump --no-owner --no-acl --clean --if-exists --quote-all-identifiers --schema=public --file="$outFile" $env:SUPABASE_DB_URL
 
 if ($LASTEXITCODE -eq 0) {
     $size = [math]::Round((Get-Item $outFile).Length / 1KB, 1)

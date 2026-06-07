@@ -89,9 +89,15 @@ export default async function TercerosPage() {
     gf: r.gf,
   }));
 
-  const initialPicks = ((existingPicks ?? []) as PickRow[]).map(
-    (p) => p.team_code,
-  );
+  // Solo conservar picks que sigan siendo terceros elegibles según los
+  // pronósticos ACTUALES del jugador. Si cambió un pronóstico y un equipo
+  // dejó de ser 3° (p. ej. salió de su grupo), su pick quedó huérfano: lo
+  // descartamos aquí para que no cuente en el límite de 8 ni bloquee el
+  // selector. Al volver a guardar, el delete-all + insert lo limpia en BD.
+  const optionCodes = new Set(thirds.map((t) => t.code));
+  const initialPicks = ((existingPicks ?? []) as PickRow[])
+    .map((p) => p.team_code)
+    .filter((code) => optionCodes.has(code));
 
   const now = new Date();
   const deadlineDate = deadline ? new Date(deadline.deadline_at) : null;
