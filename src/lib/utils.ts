@@ -17,15 +17,10 @@ export function formatDateMx(date: Date | string): string {
   }).format(d);
 }
 
-// Solo día (sin hora) para mostrar kickoffs de partidos mientras los horarios reales no estén cargados.
+// Kickoff de partido en hora CDMX (día + hora). Antes mostraba solo el día
+// hasta tener el calendario real; ya está cargado, así que incluimos la hora.
 export function formatMatchDayMx(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("es-MX", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    timeZone: "America/Mexico_City",
-  }).format(d);
+  return formatDateMx(date);
 }
 
 export function slugify(text: string): string {
