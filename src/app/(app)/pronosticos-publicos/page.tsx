@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Eye, Lock, Goal, Globe } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { Card, CardContent } from "@/components/ui/card";
 import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
 
@@ -43,7 +44,7 @@ export default async function PronosticosPublicosPage() {
   const [
     { data: allMatches },
     { data: allDeadlines },
-    { data: predictions },
+    predictions,
     { data: teams },
     { data: mePlayer },
     { data: previewConfig },
@@ -54,9 +55,9 @@ export default async function PronosticosPublicosPage() {
     supabase
       .from("deadlines")
       .select("stage, deadline_at"),
-    supabase
-      .from("predictions")
-      .select("match_id"),
+    fetchAllRows<PredCountRow>((from, to) =>
+      supabase.from("predictions").select("match_id").order("id").range(from, to),
+    ),
     supabase
       .from("teams")
       .select("code, name, group_letter, flag_emoji"),

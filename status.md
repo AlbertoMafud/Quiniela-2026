@@ -1,6 +1,6 @@
 # Quiniela Familia 2026 — Status
 
-> Última actualización: **2026-05-23** (sesión cerrada con fixes de privacidad + nav móvil + backups)
+> Última actualización: **2026-06-08** (fix paginado de conteos; previo: calendario oficial + bug terceros, en prod)
 
 ## Qué es esto
 
@@ -35,6 +35,36 @@ Familia. Auth por **PIN** (sin email, sin password). Admins actuales: **Alberto*
 - **Admin siempre ve todo** (incluyendo pronósticos de otros antes del cierre, para poder auditar).
 - **Privacidad de pronósticos**: cada jugador no-admin SOLO ve los suyos hasta que pase el cierre (`deadline_at`) de esa etapa. Después se revelan todos. Aplica a `/ranking`.
 - **NO tocar `quiniela-original/` ni `quiniela-2026/`** (son la app real de Adriana en Firebase prod).
+
+## Cambios recientes (sesión 2026-06-08)
+
+**fix(conteos): paginar fetches de `predictions` (bug latente del límite 1000 de PostgREST).** Al cruzar las 1000 predicciones (1268), las consultas que traían predicciones de TODOS los jugadores sin paginar se truncaban a 1000 → conteo por jugador del admin (progreso, usuarios) y puntos del ranking calculados sobre datos truncados. Síntoma: dashboard de Alberto 72/72 vs admin 22/72. El dashboard NO se afectaba (cuenta por jugador con `count:"exact"`). **Ningún dato perdido.**
+
+- Nuevo helper `src/lib/supabase/fetch-all.ts` → `fetchAllRows` (paginado con `.range()`; requiere `.order()` estable).
+- Aplicado a los 6 lugares vulnerables: `ranking` (puntos — crítico), `admin/progreso`, `admin/usuarios`, `estadisticas`, `pronosticos-publicos`, `admin/herramientas` (tool de relleno).
+- Los fetches filtrados por jugador o por partido (`grupos`, `terceros`, `bracket`, dashboard) no se tocaron (≤120 filas).
+- Verificado contra prod (solo lectura): el paginado trae 1268; conteo por jugador correcto (17 con 72/72; los 0/parciales son reales).
+- Es código puro, sin cambios de datos. Deploy: push → Vercel.
+
+## Cambios recientes (sesión 2026-06-07)
+
+Calendario de fase de grupos estaba **sintético** (seed placeholder): fechas, horas y localía equivocadas. Se corrigió con los datos OFICIALES (Excel del Mundial), **sin alterar los pronósticos ya cargados**. Además se arregló un bug de "mejores terceros".
+
+1. **fix(calendario)**: 72 partidos con localía, fecha/hora (CDMX, UTC-6), estadio y ciudad oficiales.
+   - `supabase/seed.sql` reescrito (BD nueva nace bien); migración `007_match_venue` agrega columnas `stadium`/`city`.
+   - `scripts/generate-schedule-fix.py` genera todo desde el Excel: el reporte comparativo, el seed y `scripts/fix-group-schedule.sql`.
+   - **Aplicado a prod** con `scripts/fix-group-schedule.sql` (transaccional, idempotente, dry-run→commit). Verificación: 981 pronósticos intactos, 0 cambios de significado por equipo, 72 partidos == oficial.
+   - Regla clave: localía volteada → se intercambian equipos **y** marcadores del pronóstico juntos (los pronósticos son posicionales), preservando el significado por equipo.
+   - Eliminado `src/lib/data/schedule.ts` (calendario sintético muerto).
+2. **fix(terceros huérfanos)**: si un jugador cambiaba un pronóstico y un equipo dejaba de ser 3°, su `third_pick` quedaba huérfano y atoraba el selector (caso Rosa María/Sudáfrica, también Gaby/Escocia).
+   - `terceros/page.tsx` (B1): filtra picks no elegibles al cargar. `terceros/_actions.ts` (B2): valida elegibilidad en servidor.
+   - `scripts/clean-orphan-thirds.ts`: limpieza one-time (reusa `src/lib/standings.ts`). **Aplicado a prod** (borró solo los 2 huérfanos reales).
+3. **ui(fechas)**: revertido el ocultamiento de la hora (`b8c6add`); ahora `formatMatchDayMx` muestra día + hora CDMX.
+4. **infra(backup)**: `scripts/backup-db.ps1` arreglado — usa `pg_dump --file` (UTF-8) y `--schema=public`. Antes el `>` de PowerShell 5.1 lo guardaba en UTF-16 y corrompía acentos/emojis. **Nota: prod es Postgres 17 → requiere pg_dump 17.**
+
+Commits: `04cfae2` (calendario+terceros) y `bb1a37b` (hora en UI). Backup de prod previo en `backups/` (gitignored).
+
+**Metodología (para futuros cambios de datos en prod):** backup → restaurar copia en BD local scratch → dry-run + verificación → commit; el ensayo local atrapó un bug de SQL (ambigüedad de columna) antes de tocar prod.
 
 ## Cambios recientes (sesión 2026-05-23)
 

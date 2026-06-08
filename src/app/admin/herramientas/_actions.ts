@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { adminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { assertAdmin, logAdminAction } from "@/lib/admin";
 import { computeStandings, bestThirds, type MatchScore } from "@/lib/standings";
 import {
@@ -104,11 +105,13 @@ export async function fillEveryonePredictionsAction(): Promise<ToolResult> {
 
   const supabase = adminClient();
 
-  const [{ data: players }, { data: matches }, { data: existing }] =
+  const [{ data: players }, { data: matches }, existing] =
     await Promise.all([
       supabase.from("players").select("id"),
       supabase.from("matches").select("id, stage").eq("stage", "group"),
-      supabase.from("predictions").select("player_id, match_id"),
+      fetchAllRows<{ player_id: string; match_id: string }>((from, to) =>
+        supabase.from("predictions").select("player_id, match_id").order("id").range(from, to),
+      ),
     ]);
 
   const existingSet = new Set(

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Trophy, Medal, Award, Globe, Sparkles, Goal } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   Card,
   CardContent,
@@ -69,7 +70,7 @@ export default async function RankingPage() {
   const [
     { data: players },
     { data: matches },
-    { data: predictions },
+    predictions,
     { data: teams },
     { data: thirdPicks },
     { data: scoringRow },
@@ -79,7 +80,13 @@ export default async function RankingPage() {
       .from("matches")
       .select("id, stage, group_letter, kickoff_at, home_team_code, away_team_code, home_score, away_score")
       .order("kickoff_at", { ascending: true }),
-    supabase.from("predictions").select("match_id, player_id, home_score, away_score"),
+    fetchAllRows<PredDB>((from, to) =>
+      supabase
+        .from("predictions")
+        .select("match_id, player_id, home_score, away_score")
+        .order("id")
+        .range(from, to),
+    ),
     supabase.from("teams").select("code, name, group_letter, flag_emoji"),
     supabase.from("third_picks").select("player_id, team_code"),
     supabase.from("scoring_params").select("*").eq("id", 1).maybeSingle<ScoringParams>(),

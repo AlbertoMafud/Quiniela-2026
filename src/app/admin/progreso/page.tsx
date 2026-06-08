@@ -1,4 +1,5 @@
 import { adminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   Card,
   CardContent,
@@ -46,7 +47,7 @@ export default async function ProgresoPage() {
   const [
     { data: players },
     { data: allMatches },
-    { data: allPreds },
+    allPreds,
     { data: thirdPickRows },
     { data: earlyBracketRows },
     { data: bracketPickRows },
@@ -57,7 +58,9 @@ export default async function ProgresoPage() {
       .select("id, name, is_admin, last_seen_at")
       .order("name"),
     supabase.from("matches").select("id, stage"),
-    supabase.from("predictions").select("player_id, match_id"),
+    fetchAllRows<{ player_id: string; match_id: string }>((from, to) =>
+      supabase.from("predictions").select("player_id, match_id").order("id").range(from, to),
+    ),
     supabase.from("third_picks").select("player_id"),
     supabase
       .from("early_bracket_picks")

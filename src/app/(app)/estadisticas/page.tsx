@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { adminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   Card,
   CardContent,
@@ -26,14 +27,16 @@ interface PredRow { match_id: string }
 export default async function EstadisticasIndexPage() {
   const supabase = adminClient();
 
-  const [{ data: matches }, { data: teams }, { data: preds }] = await Promise.all([
+  const [{ data: matches }, { data: teams }, preds] = await Promise.all([
     supabase
       .from("matches")
       .select("id, stage, group_letter, kickoff_at, home_team_code, away_team_code")
       .order("kickoff_at", { ascending: true })
       .limit(100),
     supabase.from("teams").select("code, name, flag_emoji"),
-    supabase.from("predictions").select("match_id"),
+    fetchAllRows<PredRow>((from, to) =>
+      supabase.from("predictions").select("match_id").order("id").range(from, to),
+    ),
   ]);
 
   const teamMap = new Map(((teams ?? []) as TeamRow[]).map((t) => [t.code, t]));

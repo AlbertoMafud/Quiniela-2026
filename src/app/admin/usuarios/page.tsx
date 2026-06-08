@@ -1,4 +1,5 @@
 import { adminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   Card,
   CardContent,
@@ -26,9 +27,9 @@ export default async function UsuariosPage() {
     .select("id, name, is_admin, created_at, last_seen_at")
     .order("created_at", { ascending: true });
 
-  const { data: predRows } = await supabase
-    .from("predictions")
-    .select("player_id");
+  const predRows = await fetchAllRows<{ player_id: string }>((from, to) =>
+    supabase.from("predictions").select("player_id").order("id").range(from, to),
+  );
 
   const counts = new Map<string, number>();
   for (const r of (predRows ?? []) as { player_id: string }[]) {
