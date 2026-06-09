@@ -85,12 +85,14 @@ export const PinInput = React.forwardRef<HTMLDivElement, PinInputProps>(
             ref={(el) => {
               inputsRef.current[i] = el;
             }}
-            type="password"
+            type="text"
             inputMode="numeric"
+            pattern="[0-9]*"
             autoComplete="one-time-code"
             maxLength={1}
             value={d}
             disabled={disabled}
+            style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
             onChange={(e) => handleChange(e, i)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             onFocus={(e) => e.currentTarget.select()}

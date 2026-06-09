@@ -4,30 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 interface ScoringRow {
   exact_score_pts: number;
   correct_winner_pts: number;
-  early_r32_bonus: number;
-  early_r16_bonus: number;
-  early_qf_bonus: number;
-  early_sf_bonus: number;
-  early_final_bonus: number;
 }
 
 const DEFAULTS: ScoringRow = {
   exact_score_pts: 3,
-  correct_winner_pts: 2,
-  early_r32_bonus: 1,
-  early_r16_bonus: 2,
-  early_qf_bonus: 3,
-  early_sf_bonus: 4,
-  early_final_bonus: 5,
+  correct_winner_pts: 1,
 };
 
 export async function RulesContent({ compact = false }: { compact?: boolean }) {
   const supabase = adminClient();
   const { data } = await supabase
     .from("scoring_params")
-    .select(
-      "exact_score_pts, correct_winner_pts, early_r32_bonus, early_r16_bonus, early_qf_bonus, early_sf_bonus, early_final_bonus",
-    )
+    .select("exact_score_pts, correct_winner_pts")
     .eq("id", 1)
     .maybeSingle<ScoringRow>();
 
@@ -37,7 +25,7 @@ export async function RulesContent({ compact = false }: { compact?: boolean }) {
     <div className={compact ? "space-y-3" : "space-y-5"}>
       <Card style={{ background: "var(--gradient-card-primary)" }}>
         <CardHeader>
-          <CardTitle>Pronósticos de marcadores</CardTitle>
+          <CardTitle>Marcador de partidos</CardTitle>
           <CardDescription>
             Aplica tanto a fase de grupos como a cada ronda de eliminatorias.
           </CardDescription>
@@ -56,20 +44,37 @@ export async function RulesContent({ compact = false }: { compact?: boolean }) {
         </CardContent>
       </Card>
 
-      <Card style={{ background: "var(--gradient-card-accent)" }}>
+      <Card style={{ background: "var(--gradient-card-info)" }}>
         <CardHeader>
-          <CardTitle>Cuadro desde el inicio (opcional)</CardTitle>
+          <CardTitle>Clasificados a 16avos</CardTitle>
           <CardDescription>
-            Si el admin lo activa, llenas el cuadro completo desde antes del Mundial.
-            Bonus por cada equipo que efectivamente llegue a esa ronda.
+            Al terminar los grupos se arman tus 32 clasificados: el 1° y 2° de cada
+            grupo (según tus marcadores) más tus 8 mejores terceros.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <RuleRow label="Llega a 16avos" points={p.early_r32_bonus} />
-          <RuleRow label="Llega a octavos" points={p.early_r16_bonus} />
-          <RuleRow label="Llega a cuartos" points={p.early_qf_bonus} />
-          <RuleRow label="Llega a semifinales" points={p.early_sf_bonus} />
-          <RuleRow label="Llega a la final" points={p.early_final_bonus} />
+          <RuleRow
+            label="Por cada equipo tuyo que sí pasó a 16avos"
+            description="Hasta 32 puntos si le atinas a los 32"
+            points={1}
+          />
+        </CardContent>
+      </Card>
+
+      <Card style={{ background: "var(--gradient-card-accent)" }}>
+        <CardHeader>
+          <CardTitle>Cuadro eliminatorio</CardTitle>
+          <CardDescription>
+            Antes de 16avos llenas tu cuadro completo (quién avanza ronda por ronda).
+            Por cada acierto, e independiente del marcador:
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <RuleRow label="Pasa 16avos (llega a octavos)" points={2} />
+          <RuleRow label="Pasa octavos (llega a cuartos)" points={3} />
+          <RuleRow label="Pasa cuartos (llega a semifinal)" points={4} />
+          <RuleRow label="Pasa semifinal (llega a la final)" points={5} />
+          <RuleRow label="Campeón" points={6} />
         </CardContent>
       </Card>
 
@@ -79,20 +84,21 @@ export async function RulesContent({ compact = false }: { compact?: boolean }) {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-[var(--color-text)]">
           <p>
-            <strong>1. Fase de grupos:</strong> mete los marcadores de los 72 partidos.
-            Puedes editar mientras no haya pasado el deadline.
+            <strong>1. Fase de grupos:</strong> mete los marcadores de los 72 partidos
+            y elige tus 8 mejores terceros. Puedes editar hasta que pase el Cierre.
           </p>
           <p>
-            <strong>2. Mejores terceros:</strong> al terminar la fase de grupos, escoges 8
-            de los 12 terceros lugares (uno por grupo).
+            <strong>2. Clasificados:</strong> al terminar los grupos se calculan tus
+            32 clasificados y ganas +1 por cada uno que realmente pasó a 16avos.
           </p>
           <p>
-            <strong>3. Cuadro tras fase de grupos:</strong> con los equipos reales que pasaron,
-            llenas tu cuadro de eliminatorias indicando solo el ganador de cada llave.
+            <strong>3. Cuadro eliminatorio:</strong> con los equipos reales que pasaron,
+            llenas tu cuadro indicando quién avanza en cada llave (bonus 2 a 6).
           </p>
           <p>
-            <strong>4. Pronósticos en eliminatorias:</strong> además del bracket, en cada
-            ronda metes el marcador exacto de cada partido para ganar más puntos.
+            <strong>4. Marcador de eliminatorias:</strong> además del cuadro, en cada
+            ronda metes el marcador exacto de cada partido para ganar más puntos. Los
+            puntos de cuadro y de marcador son independientes y se suman.
           </p>
         </CardContent>
       </Card>
@@ -101,7 +107,7 @@ export async function RulesContent({ compact = false }: { compact?: boolean }) {
         <CardHeader>
           <CardTitle>Plazos</CardTitle>
           <CardDescription>
-            Los pronósticos se pueden editar mientras no haya pasado el deadline de su etapa.
+            Los pronósticos se pueden editar mientras no haya pasado el Cierre de su etapa.
             Después, quedan congelados y todos pueden ver lo que cada quien pronosticó.
           </CardDescription>
         </CardHeader>

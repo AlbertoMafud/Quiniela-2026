@@ -140,7 +140,7 @@ export default async function TercerosPage() {
           options={thirds}
           initialSelection={initialPicks}
           locked={locked}
-          lockReason={locked ? "El deadline de terceros ya pasó." : undefined}
+          lockReason={locked ? "El Cierre de terceros ya pasó." : undefined}
         />
       )}
     </div>

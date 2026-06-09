@@ -46,6 +46,51 @@ Familia. Auth por **PIN** (sin email, sin password). Admins actuales: **Alberto*
 - Verificado contra prod (solo lectura): el paginado trae 1268; conteo por jugador correcto (17 con 72/72; los 0/parciales son reales).
 - Es código puro, sin cambios de datos. Deploy: push → Vercel.
 
+### Auditoría profunda + plan de remediación
+
+Auditoría multi-perspectiva (seguridad / correctitud / UX) con verificación manual en código. **Plan completo y tracker en `../docs/auditoria-remediacion-2026-06-08.md`** (doc compartido para escalar después a Business-quiniela). Cada item etiquetado por riesgo de datos: 🟢 solo código (nulo) · 🟡 lógica · 🔴 esquema/datos (backup→local→dry-run→commit).
+
+**Sospechas iniciales verificadas como NO-bug (no tocar):**
+- Scoring de grupos a **3/2 (no 2/1) es intencional** — `rules-content.tsx` dice "aplica a grupos y eliminatorias". El 2/1 era del proyecto viejo `quiniela-2026`.
+- El selector **"¿Quién pasa?" en empates SÍ existe y funciona** (`match-prediction-card.tsx:205-254`).
+- Paginación 1000 filas ya resuelta con `fetchAllRows` (ver arriba). No tocar.
+
+**Tanda A — APLICADA Y VERIFICADA EN LOCAL (2026-06-08). Falta push a prod tras visto bueno.**
+Solo código, riesgo de datos NULO. `typecheck` + `eslint` limpios; `/login` verificado en navegador sin errores de consola.
+- [x] A-1 autosave: flush del guardado pendiente al desmontar (`match-prediction-card.tsx`)
+- [x] A-2 ya no autollena el otro marcador en 0; guarda solo con ambos puestos
+- [x] A-3 `--color-surface-3` definida en `globals.css` (light + dark)
+- [x] A-4 `src/app/(app)/loading.tsx` + `error.tsx` agregados
+- [x] A-5 `pattern="[0-9]*"` en score-input; PIN `type=text`+`inputMode=numeric`+máscara `-webkit-text-security` (numpad asegurado, sigue enmascarado)
+- [x] A-6 copy "deadline" → "Cierre" en todas las pantallas de usuario
+- [x] A-7 login respeta `?next=` (input oculto vía DOM) · A-8 contraste dark subido a 0.62 · A-9 aria-labels +/- con nombre de equipo
+- [x] **A-10 (NUEVO, ⚠️ cambio de comportamiento): el middleware de auth NO corría.** Estaba en `middleware.ts` (raíz) pero con directorio `src/` Next lo busca en `src/middleware.ts`. **Nunca corrió desde el upgrade a Next 16** → la auth dependía solo de los layouts; por eso A-7 tampoco funcionaba. Movido a `src/middleware.ts`. Verificado: gate activo, `/ranking`→`/login?next=…`, `SESSION_SECRET` presente en el runtime (sin riesgo de lockout). **OJO antes de push: confirma con login real que navegas sin rebotes (activa el gate por primera vez).**
+
+**Tanda B — APLICADA EN LOCAL (2026-06-08). typecheck + lint limpios. Falta verificación autenticada + `pnpm build` antes de push.**
+Decisiones tomadas: cuadro inicial NO se usa · equipos de eliminatoria se fijan a mano.
+- [x] B-1 panel admin a mano: nueva acción `saveMatchTeams` + selects de equipo por partido KO en `/admin/resultados` (`results-list.tsx`). El admin pone los equipos reales de R16→Final. (Escritura a `matches` cuando lo use, ~28-jun → metodología; el código es 🟢.)
+- [~] B-2/B-3 SKIP por decisión: `early_bracket_enabled` se queda **off**; NO se cableó `scoreEarlyBracket`. Si algún día lo activan, implementar el scoring ANTES (si no, da 0 pts). El scoring de eliminatoria por partido ya funciona y no depende de esto.
+- [x] B-4 unificado el motor de puntos: nuevo `src/lib/ranking-data.ts` (`getRankingTotals`); el dashboard `/` lo usa en vez de la vista SQL `player_scores` → dashboard y ranking dan el MISMO total. Bonus: el rank del dashboard ya es correcto fuera del top-5. La vista SQL queda sin usar (borrable luego con migración).
+
+**Seguridad (A1-A4 del informe): se SALTAN en la familiar**, anotadas para Business-quiniela en el doc compartido (RLS `using(true)` legible vía anon key + service-role en todo + login sin rate-limit + auto-admin por conteo). Multi-tenant = bloqueantes; familia = tolerables.
+
+### Rediseño del scoring (modelo oficial Adriana) — 2026-06-08
+
+**CORRECCIÓN a un error mío previo:** había dicho que "grupos 3/2 era intencional". **Falso.** La regla real (mensaje de Adriana) es **3 exacto / 1 ganador**, y faltaban 2 componentes enteros. Reescrito el motor (`computeTotals`) a 4 fuentes:
+
+| Fuente | Regla | Campo |
+|---|---|---|
+| Marcador grupos | 3 exacto / **1** ganador | `group_points` |
+| Clasificados | +1 por cada uno de tus 32 (1°+2° de tus standings pronosticados + 8 terceros) que pasó a 16avos | `clasificados_points` |
+| Marcador eliminatorias | 3 exacto / 1 ganador | `elim_points` |
+| Cuadro (quién avanza) | 16avos→2, octavos→3, cuartos→4, semis→5, campeón→6 | `cuadro_points` |
+
+Archivos: `scoring.ts` (const `CUADRO_BONUS` 2/3/4/5/6), `ranking-calculator.ts` (reescrito), `ranking-data.ts` + `ranking/page.tsx` (traen `bracket_picks` + `penalty_winner`, columnas: Grupos/Clasificados/Eliminatorias), `rules-content.tsx` (reglas reales), `admin/resultados` (**B-3 ahora SÍ**: selector "¿quién pasó?" en empates KO, lo necesita el cuadro). Early bracket sigue off.
+
+**Verificado:** `scripts/test-scoring.ts` (`npx tsx`) ejecuta el motor con el ejemplo de Adriana → 33 pts (grupos 16 / clasif 3 / elim 6 / cuadro 8). ✅ typecheck + lint limpios.
+
+**⚠️ PENDIENTE CRÍTICO — el fix de "ganador = 1" NO está vivo hasta correr el SQL:** el código lee `correct_winner_pts` de la BD, que sigue en **2**. Hay que correr `scripts/fix-scoring-winner-pts.sql` en local (para probar) y en prod (con metodología backup→local→dry-run→commit). Hasta entonces, grupos/elim pagan ganador=2. Los defaults de esquema (`combined-setup.sql`, init) ya quedaron en 1 para BD nuevas.
+
 ## Cambios recientes (sesión 2026-06-07)
 
 Calendario de fase de grupos estaba **sintético** (seed placeholder): fechas, horas y localía equivocadas. Se corrigió con los datos OFICIALES (Excel del Mundial), **sin alterar los pronósticos ya cargados**. Además se arregló un bug de "mejores terceros".

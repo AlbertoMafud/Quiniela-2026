@@ -195,7 +195,7 @@ export default async function BracketInicioPage() {
         <BracketPicker
           matches={resolved}
           locked={locked}
-          lockReason={locked ? "El deadline ya pasó." : undefined}
+          lockReason={locked ? "El Cierre ya pasó." : undefined}
         />
       )}
     </div>

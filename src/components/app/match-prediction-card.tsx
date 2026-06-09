@@ -52,6 +52,11 @@ export function MatchPredictionCard({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guardado pendiente (aún en debounce). Se hace flush al desmontar para no
+  // perder un cambio hecho < 500 ms antes de navegar (A-1).
+  const pending = useRef<{ h: number; a: number; pw: string | null } | null>(
+    null,
+  );
 
   const isDraw =
     homeScore !== null && awayScore !== null && homeScore === awayScore;
@@ -60,6 +65,7 @@ export function MatchPredictionCard({
   function scheduleSave(h: number, a: number, pw: string | null) {
     setStatus("dirty");
     setErrorMsg(null);
+    pending.current = { h, a, pw };
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       doSave(h, a, pw);
@@ -73,6 +79,7 @@ export function MatchPredictionCard({
       setStatus("dirty");
       return;
     }
+    pending.current = null;
     setStatus("saving");
     startTransition(async () => {
       const res = await savePredictionAction({
@@ -90,38 +97,54 @@ export function MatchPredictionCard({
     });
   }
 
+  // No persistir un marcador parcial: solo guardamos cuando AMBOS marcadores
+  // están puestos. Así, escribir "2" no deja un "2-0" que el usuario no quería
+  // (A-2). El otro lado se queda vacío hasta que el usuario lo teclee.
   function handleHomeChange(v: number) {
     setHomeScore(v);
-    const a = awayScore ?? 0;
-    if (awayScore === null) setAwayScore(0);
-    // Si deja de ser empate, limpiar penalty
-    const drawNow = v === a;
-    const pw = drawNow ? penaltyWinner : null;
+    const a = awayScore;
+    const drawNow = a !== null && v === a;
     if (!drawNow && penaltyWinner) setPenaltyWinner(null);
-    scheduleSave(v, a, pw);
+    if (a === null) {
+      setStatus("dirty");
+      return;
+    }
+    scheduleSave(v, a, drawNow ? penaltyWinner : null);
   }
 
   function handleAwayChange(v: number) {
     setAwayScore(v);
-    const h = homeScore ?? 0;
-    if (homeScore === null) setHomeScore(0);
-    const drawNow = h === v;
-    const pw = drawNow ? penaltyWinner : null;
+    const h = homeScore;
+    const drawNow = h !== null && h === v;
     if (!drawNow && penaltyWinner) setPenaltyWinner(null);
-    scheduleSave(h, v, pw);
+    if (h === null) {
+      setStatus("dirty");
+      return;
+    }
+    scheduleSave(h, v, drawNow ? penaltyWinner : null);
   }
 
   function handlePenaltyChange(code: string) {
     setPenaltyWinner(code);
-    const h = homeScore ?? 0;
-    const a = awayScore ?? 0;
-    scheduleSave(h, a, code);
+    if (homeScore === null || awayScore === null) return;
+    scheduleSave(homeScore, awayScore, code);
   }
 
   useEffect(() => {
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      const p = pending.current;
+      if (p && !(requirePenaltyWinner && p.h === p.a && !p.pw)) {
+        // Flush del guardado pendiente antes de desmontar.
+        void savePredictionAction({
+          matchId,
+          homeScore: p.h,
+          awayScore: p.a,
+          penaltyWinnerCode: requirePenaltyWinner && p.h === p.a ? p.pw : null,
+        });
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

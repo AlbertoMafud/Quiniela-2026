@@ -111,7 +111,14 @@ export async function loginAction(
   }
 
   await createSession(player.id);
-  redirect("/");
+  const nextParam = formData.get("next");
+  redirect(
+    typeof nextParam === "string" &&
+      nextParam.startsWith("/") &&
+      !nextParam.startsWith("//")
+      ? nextParam
+      : "/",
+  );
 }
 
 export async function logoutAction() {

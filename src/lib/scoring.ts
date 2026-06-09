@@ -2,6 +2,19 @@ import type { Round, Tables } from "@/lib/supabase/database.types";
 
 export type ScoringParams = Tables<"scoring_params">;
 
+/**
+ * Bonus del CUADRO (quién avanza), según la ronda del pick. Reglas oficiales:
+ * acertar que un equipo pasa 16avos = +2, octavos = +3, cuartos = +4,
+ * semifinal = +5, y campeón (gana la final) = +6. Independiente del marcador.
+ */
+export const CUADRO_BONUS: Record<Round, number> = {
+  r32: 2,
+  r16: 3,
+  qf: 4,
+  sf: 5,
+  final: 6,
+};
+
 export interface MatchPrediction {
   home: number;
   away: number;

@@ -105,7 +105,7 @@ create index idx_early_bracket_picks_player on early_bracket_picks (player_id, r
 create table scoring_params (
   id                   int primary key default 1 check (id = 1),
   exact_score_pts      int not null default 3,
-  correct_winner_pts   int not null default 2,
+  correct_winner_pts   int not null default 1,
   early_r32_bonus      int not null default 1,
   early_r16_bonus      int not null default 2,
   early_qf_bonus       int not null default 3,

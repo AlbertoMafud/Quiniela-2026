@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Trophy, Medal, Award, Target, Sparkles, Goal, ChartLine, Clock, TrendingUp, Users, CheckCircle2, Lock } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
+import { getRankingTotals } from "@/lib/ranking-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { formatDateMx, formatMatchDayMx } from "@/lib/utils";
@@ -67,7 +68,6 @@ export default async function DashboardPage() {
     { data: player },
     { data: nextDeadline },
     { data: nextMatch },
-    { data: scores },
     { count: totalPlayers },
     { count: totalGroupMatches },
     { count: myGroupPreds },
@@ -99,11 +99,6 @@ export default async function DashboardPage() {
       .order("kickoff_at", { ascending: true })
       .limit(1)
       .maybeSingle<MatchRow>(),
-    supabase
-      .from("player_scores")
-      .select("player_id, player_name, total_points")
-      .order("total_points", { ascending: false })
-      .limit(5),
     supabase.from("players").select("*", { count: "exact", head: true }),
     supabase.from("matches").select("*", { count: "exact", head: true }).eq("stage", "group"),
     supabase.from("predictions").select("*", { count: "exact", head: true }).eq("player_id", session.playerId),
@@ -133,7 +128,12 @@ export default async function DashboardPage() {
   ]);
 
   const teamMap = new Map(((teams ?? []) as TeamRow[]).map((t) => [t.code, t]));
-  const scoresList = (scores ?? []) as ScoreRow[];
+  const totals = await getRankingTotals();
+  const scoresList: ScoreRow[] = totals.map((t) => ({
+    player_id: t.player_id,
+    player_name: t.player_name,
+    total_points: t.total,
+  }));
   const recents = (recentResults ?? []) as MatchRow[];
   const earlyBracketOn = Boolean(earlyEnabled?.value);
 
@@ -228,7 +228,7 @@ export default async function DashboardPage() {
                 href="/pronosticos/grupos"
                 icon={Target}
                 infoTitle="Pronósticos de fase de grupos"
-                infoDescription="Mete tu marcador exacto para cada uno de los 72 partidos de la primera ronda (12 grupos × 6 partidos). Ganas 3 pts por marcador exacto y 2 pts por adivinar al ganador (o empate). Puedes editar hasta que pase el deadline."
+                infoDescription="Mete tu marcador exacto para cada uno de los 72 partidos de la primera ronda (12 grupos × 6 partidos). Ganas 3 pts por marcador exacto y 2 pts por adivinar al ganador (o empate). Puedes editar hasta que pase el Cierre."
               />
               <ProgressBar
                 label="Mejores terceros"
@@ -315,7 +315,7 @@ export default async function DashboardPage() {
             <CardDescription>Quién va arriba.</CardDescription>
           </CardHeader>
           <CardContent>
-            <MiniRanking scores={scoresList} mePlayerId={session.playerId} />
+            <MiniRanking scores={scoresList.slice(0, 5)} mePlayerId={session.playerId} />
             <Link
               href="/ranking"
               className="mt-3 inline-flex items-center text-sm text-[var(--color-primary)] font-medium hover:underline"
@@ -451,7 +451,7 @@ function DeadlineCard({ deadline }: { deadline: DeadlineRow | null | undefined }
           </>
         ) : (
           <p className="text-sm text-[var(--color-text-muted)]">
-            No hay deadlines activos.
+            No hay cierres activos.
           </p>
         )}
       </CardContent>

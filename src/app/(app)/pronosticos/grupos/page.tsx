@@ -105,7 +105,7 @@ export default async function PronosticosGruposPage() {
         locked={locked}
         lockReason={
           locked
-            ? "El deadline de fase de grupos ya pasó."
+            ? "El Cierre de la fase de grupos ya pasó."
             : undefined
         }
       />

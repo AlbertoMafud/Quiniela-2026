@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth-edge";
 
+// OJO: con directorio `src/`, Next.js busca el middleware en `src/middleware.ts`
+// (no en la raíz). El antiguo `middleware.ts` de la raíz nunca corría; la auth
+// dependía solo de los layouts. Aquí el gate vuelve a vivir + el `?next`.
 const PUBLIC_PATHS = ["/login", "/registro", "/api/cron"];
 
 export async function middleware(req: NextRequest) {

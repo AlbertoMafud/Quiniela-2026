@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useEffect, useRef, useActionState } from "react";
 import Link from "next/link";
 import { UserPlus, LogIn, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -194,10 +194,20 @@ function SignupForm() {
 
 function LoginForm() {
   const [pin, setPin] = useState("");
+  const nextRef = useRef<HTMLInputElement>(null);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     loginAction,
     {},
   );
+
+  // Si llegamos por un deep-link protegido, el middleware puso ?next=/ruta;
+  // lo reenviamos (vía DOM, sin setState) para volver ahí tras entrar (A-7).
+  useEffect(() => {
+    const n = new URLSearchParams(window.location.search).get("next");
+    if (n && n.startsWith("/") && !n.startsWith("//") && nextRef.current) {
+      nextRef.current.value = n;
+    }
+  }, []);
 
   return (
     <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6 shadow-[var(--shadow-sm)]">
@@ -209,6 +219,7 @@ function LoginForm() {
       </p>
 
       <form action={formAction} className="space-y-5">
+        <input ref={nextRef} type="hidden" name="next" defaultValue="" />
         <div className="space-y-2">
           <Label htmlFor="name">Nombre</Label>
           <Input

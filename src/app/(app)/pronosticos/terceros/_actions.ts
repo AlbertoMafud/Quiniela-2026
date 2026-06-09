@@ -74,7 +74,7 @@ export async function saveThirdsAction(
     .maybeSingle<{ deadline_at: string }>();
 
   if (deadline && new Date(deadline.deadline_at) <= new Date()) {
-    return { ok: false, error: "El deadline para terceros ya pasó." };
+    return { ok: false, error: "El Cierre de terceros ya pasó." };
   }
 
   // Validar elegibilidad: cada código debe ser hoy un tercero del jugador.

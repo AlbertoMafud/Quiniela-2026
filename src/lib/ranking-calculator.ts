@@ -1,191 +1,219 @@
-// Calcula puntos por jugador desglosados por categoría y por partido.
-// Reusa scoreMatch() y scoreEarlyBracket() de lib/scoring.
+// Cálculo de puntos por jugador (modelo oficial 2026). Cuatro fuentes:
+//
+//  1. Marcador de grupos:        exacto = exact_score_pts (3) · ganador = correct_winner_pts (1)
+//  2. Clasificados (Fase 1):     +1 por cada uno de tus 32 (1° y 2° de tus standings
+//                                pronosticados + tus 8 terceros elegidos) que pasó de
+//                                verdad a 16avos.
+//  3. Marcador de eliminatorias: misma regla que grupos (3 / 1).
+//  4. Cuadro (quién avanza):     por cada acierto, bonus por ronda (16avos→2, octavos→3,
+//                                cuartos→4, semis→5, final/campeón→6). Independiente del marcador.
 
-import { scoreMatch, type ScoringParams } from "./scoring";
+import { scoreMatch, CUADRO_BONUS, type ScoringParams } from "./scoring";
+import { computeStandings, bestThirds, type MatchScore } from "./standings";
+import type { Round } from "@/lib/supabase/database.types";
 
 export interface MatchData {
   id: string;
   stage: string;
   group_letter: string | null;
+  home_team_code: string | null;
+  away_team_code: string | null;
   home_score: number | null;
   away_score: number | null;
+  penalty_winner: string | null;
 }
-
 export interface PredictionData {
   match_id: string;
   player_id: string;
   home_score: number;
   away_score: number;
 }
-
 export interface ThirdPickData {
   player_id: string;
   team_code: string;
 }
-
+export interface BracketPickData {
+  player_id: string;
+  slot_id: string;
+  round: Round;
+  winner_team_code: string | null;
+}
 export interface PlayerData {
   id: string;
   name: string;
 }
-
-export interface MatchPredictionPoints {
-  player_id: string;
-  pred_home: number;
-  pred_away: number;
-  points: number;
-  exact: boolean;
-  winner: boolean;
-}
-
-export interface MatchBreakdown {
-  match_id: string;
-  predictions: MatchPredictionPoints[];
+export interface TeamInfo {
+  code: string;
+  name: string;
+  group_letter: string;
 }
 
 export interface PlayerTotals {
   player_id: string;
   player_name: string;
-  group_points: number;
-  thirds_points: number;
-  bracket_points: number;
+  group_points: number; // marcador de grupos
+  clasificados_points: number; // +1 por clasificado real entre tus 32
+  elim_points: number; // marcador de eliminatorias
+  cuadro_points: number; // bonus por avance del cuadro
   total: number;
   group_predictions_made: number;
-  group_matches_played: number; // partidos con resultado oficial
+  group_matches_played: number;
 }
 
-/**
- * Para cada partido, devuelve qué predijo cada jugador y cuántos puntos ganó.
- */
-export function breakdownByMatch(
-  matches: MatchData[],
-  predictions: PredictionData[],
-  params: Pick<ScoringParams, "exact_score_pts" | "correct_winner_pts">,
-): Map<string, MatchPredictionPoints[]> {
-  const map = new Map<string, MatchPredictionPoints[]>();
-  const matchesById = new Map(matches.map((m) => [m.id, m]));
-
-  for (const p of predictions) {
-    const m = matchesById.get(p.match_id);
-    if (!m) continue;
-    const actual =
-      m.home_score !== null && m.away_score !== null
-        ? { home: m.home_score, away: m.away_score }
-        : null;
-    const pred = { home: p.home_score, away: p.away_score };
-    const points = scoreMatch(pred, actual, params);
-    const exact =
-      actual !== null &&
-      pred.home === actual.home &&
-      pred.away === actual.away;
-    const winner =
-      actual !== null &&
-      !exact &&
-      Math.sign(pred.home - pred.away) === Math.sign(actual.home - actual.away);
-
-    const row: MatchPredictionPoints = {
-      player_id: p.player_id,
-      pred_home: p.home_score,
-      pred_away: p.away_score,
-      points,
-      exact,
-      winner,
-    };
-
-    const list = map.get(p.match_id) ?? [];
-    list.push(row);
-    map.set(p.match_id, list);
-  }
-  return map;
-}
-
-/**
- * Para cada jugador, suma puntos totales por categoría.
- */
 export function computeTotals(
   players: PlayerData[],
   matches: MatchData[],
   predictions: PredictionData[],
-  thirdsActualBest: string[], // 8 best thirds reales (vacío si fase grupos no termina)
   thirdPicks: ThirdPickData[],
+  bracketPicks: BracketPickData[],
+  teams: TeamInfo[],
   params: ScoringParams,
 ): PlayerTotals[] {
-  const breakdown = breakdownByMatch(matches, predictions, params);
+  const matchParams = {
+    exact_score_pts: params.exact_score_pts,
+    correct_winner_pts: params.correct_winner_pts,
+  };
+  const matchesById = new Map(matches.map((m) => [m.id, m]));
 
-  // Acumular puntos por stage
-  const groupPointsByPlayer = new Map<string, number>();
-  const eliminationPointsByPlayer = new Map<string, number>();
-  for (const [matchId, list] of breakdown) {
-    const m = matches.find((x) => x.id === matchId);
-    if (!m) continue;
-    for (const row of list) {
-      if (m.stage === "group") {
-        groupPointsByPlayer.set(
-          row.player_id,
-          (groupPointsByPlayer.get(row.player_id) ?? 0) + row.points,
-        );
-      } else {
-        eliminationPointsByPlayer.set(
-          row.player_id,
-          (eliminationPointsByPlayer.get(row.player_id) ?? 0) + row.points,
-        );
-      }
+  // --- Realidad: clasificados reales (32) y avanzador real por partido KO ---
+  const groupMatches = matches.filter((m) => m.stage === "group");
+  const completedGroup: MatchScore[] = [];
+  for (const m of groupMatches) {
+    if (
+      m.home_team_code &&
+      m.away_team_code &&
+      m.home_score !== null &&
+      m.away_score !== null
+    ) {
+      completedGroup.push({
+        home_team_code: m.home_team_code,
+        away_team_code: m.away_team_code,
+        home_score: m.home_score,
+        away_score: m.away_score,
+      });
     }
   }
-
-  // Mejores terceros: por cada player, contar cuántos de sus picks están en thirdsActualBest.
-  // OJO: solo se cuentan cuando la fase de grupos esté COMPLETA (todos los partidos jugados).
-  // De lo contrario, `bestThirds()` devuelve teams ordenados alfabéticamente con 0 pts
-  // y daría puntos "fantasma" antes de que arranque el torneo.
-  const thirdsByPlayer = new Map<string, number>();
-  const groupTotalCount = matches.filter((m) => m.stage === "group").length;
   const groupStageComplete =
-    groupTotalCount > 0 &&
-    matches.filter(
-      (m) =>
-        m.stage === "group" && m.home_score !== null && m.away_score !== null,
-    ).length === groupTotalCount;
-  if (groupStageComplete && thirdsActualBest.length > 0) {
-    for (const p of thirdPicks) {
-      if (thirdsActualBest.includes(p.team_code)) {
-        thirdsByPlayer.set(
-          p.player_id,
-          (thirdsByPlayer.get(p.player_id) ?? 0) + 1,
-        );
-      }
-    }
-  }
-  // Cada acierto vale (por convención) el bonus de R32 — equipo llega a R32
-  const thirdHitValue = params.early_r32_bonus;
+    groupMatches.length > 0 && completedGroup.length === groupMatches.length;
 
-  // Predictions made + matches played en grupos
-  const groupPredsCount = new Map<string, number>();
-  for (const p of predictions) {
-    const m = matches.find((x) => x.id === p.match_id);
-    if (m?.stage === "group") {
-      groupPredsCount.set(
-        p.player_id,
-        (groupPredsCount.get(p.player_id) ?? 0) + 1,
-      );
+  const realQualifiers = new Set<string>();
+  if (groupStageComplete) {
+    const realStandings = computeStandings(teams, completedGroup);
+    for (const s of realStandings) {
+      if (s.position === 1 || s.position === 2) realQualifiers.add(s.team_code);
     }
+    for (const t of bestThirds(realStandings)) realQualifiers.add(t.team_code);
   }
-  const groupPlayed = matches.filter(
-    (m) => m.stage === "group" && m.home_score !== null && m.away_score !== null,
-  ).length;
+
+  // Avanzador real de cada partido de eliminatoria (empate a 90' → penalty_winner).
+  const advancerByMatch = new Map<string, string>();
+  for (const m of matches) {
+    if (m.stage === "group") continue;
+    if (m.home_score === null || m.away_score === null) continue;
+    let adv: string | null = null;
+    if (m.home_score > m.away_score) adv = m.home_team_code;
+    else if (m.away_score > m.home_score) adv = m.away_team_code;
+    else adv = m.penalty_winner;
+    if (adv) advancerByMatch.set(m.id, adv);
+  }
+
+  // --- Índices por jugador ---
+  const predsByPlayer = new Map<string, PredictionData[]>();
+  for (const p of predictions) {
+    const list = predsByPlayer.get(p.player_id);
+    if (list) list.push(p);
+    else predsByPlayer.set(p.player_id, [p]);
+  }
+  const thirdsByPlayer = new Map<string, string[]>();
+  for (const t of thirdPicks) {
+    const list = thirdsByPlayer.get(t.player_id);
+    if (list) list.push(t.team_code);
+    else thirdsByPlayer.set(t.player_id, [t.team_code]);
+  }
+  const bracketByPlayer = new Map<string, BracketPickData[]>();
+  for (const b of bracketPicks) {
+    const list = bracketByPlayer.get(b.player_id);
+    if (list) list.push(b);
+    else bracketByPlayer.set(b.player_id, [b]);
+  }
 
   return players
     .map((pl) => {
-      const group = groupPointsByPlayer.get(pl.id) ?? 0;
-      const thirds = (thirdsByPlayer.get(pl.id) ?? 0) * thirdHitValue;
-      const elims = eliminationPointsByPlayer.get(pl.id) ?? 0;
+      const myPreds = predsByPlayer.get(pl.id) ?? [];
+
+      let group_points = 0;
+      let elim_points = 0;
+      let group_predictions_made = 0;
+      const myGroupScores: MatchScore[] = [];
+
+      for (const p of myPreds) {
+        const m = matchesById.get(p.match_id);
+        if (!m) continue;
+        const actual =
+          m.home_score !== null && m.away_score !== null
+            ? { home: m.home_score, away: m.away_score }
+            : null;
+        const pts = scoreMatch(
+          { home: p.home_score, away: p.away_score },
+          actual,
+          matchParams,
+        );
+        if (m.stage === "group") {
+          group_points += pts;
+          group_predictions_made += 1;
+          if (m.home_team_code && m.away_team_code) {
+            myGroupScores.push({
+              home_team_code: m.home_team_code,
+              away_team_code: m.away_team_code,
+              home_score: p.home_score,
+              away_score: p.away_score,
+            });
+          }
+        } else {
+          elim_points += pts;
+        }
+      }
+
+      // Clasificados (solo cuando la fase de grupos real ya terminó).
+      let clasificados_points = 0;
+      if (groupStageComplete) {
+        const myPredicted = new Set<string>();
+        const myStandings = computeStandings(teams, myGroupScores);
+        for (const s of myStandings) {
+          if (s.position === 1 || s.position === 2) {
+            myPredicted.add(s.team_code);
+          }
+        }
+        for (const code of thirdsByPlayer.get(pl.id) ?? []) {
+          myPredicted.add(code);
+        }
+        for (const code of myPredicted) {
+          if (realQualifiers.has(code)) clasificados_points += 1;
+        }
+      }
+
+      // Cuadro: por cada pick cuyo equipo realmente avanzó esa llave, bonus por ronda.
+      let cuadro_points = 0;
+      for (const b of bracketByPlayer.get(pl.id) ?? []) {
+        if (!b.winner_team_code) continue;
+        const adv = advancerByMatch.get(b.slot_id);
+        if (adv && adv === b.winner_team_code) {
+          cuadro_points += CUADRO_BONUS[b.round] ?? 0;
+        }
+      }
+
+      const total =
+        group_points + clasificados_points + elim_points + cuadro_points;
       return {
         player_id: pl.id,
         player_name: pl.name,
-        group_points: group,
-        thirds_points: thirds,
-        bracket_points: elims,
-        total: group + thirds + elims,
-        group_predictions_made: groupPredsCount.get(pl.id) ?? 0,
-        group_matches_played: groupPlayed,
+        group_points,
+        clasificados_points,
+        elim_points,
+        cuadro_points,
+        total,
+        group_predictions_made,
+        group_matches_played: completedGroup.length,
       };
     })
     .sort((a, b) => b.total - a.total);

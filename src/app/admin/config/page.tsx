@@ -56,9 +56,9 @@ export default async function ConfigPage() {
           <CardTitle>Previsualización de pronósticos públicos (admins)</CardTitle>
           <CardDescription>
             Si está activa, los administradores pueden ver los pronósticos en
-            /pronosticos-publicos aun cuando el deadline de cada fase no haya
+            /pronosticos-publicos aun cuando el Cierre de cada fase no haya
             pasado. Útil para validar la vista antes del cierre. Para jugadores
-            normales sigue bloqueado hasta el deadline.
+            normales sigue bloqueado hasta el Cierre.
           </CardDescription>
         </CardHeader>
         <CardContent>

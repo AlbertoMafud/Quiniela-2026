@@ -54,7 +54,7 @@ export function ScoreInput({
         type="button"
         onClick={dec}
         disabled={disabled || display <= min}
-        aria-label="Reducir marcador"
+        aria-label={ariaLabel ? `Reducir ${ariaLabel}` : "Reducir marcador"}
         className={cn(
           "h-11 w-11 rounded-full inline-flex items-center justify-center",
           "bg-[var(--color-surface-2)] text-[var(--color-text)]",
@@ -69,6 +69,7 @@ export function ScoreInput({
       <input
         type="text"
         inputMode="numeric"
+        pattern="[0-9]*"
         value={value === null ? "" : String(value)}
         onChange={handleInputChange}
         onFocus={(e) => e.currentTarget.select()}
@@ -87,7 +88,7 @@ export function ScoreInput({
         type="button"
         onClick={inc}
         disabled={disabled || display >= max}
-        aria-label="Aumentar marcador"
+        aria-label={ariaLabel ? `Aumentar ${ariaLabel}` : "Aumentar marcador"}
         className={cn(
           "h-11 w-11 rounded-full inline-flex items-center justify-center",
           "bg-[var(--color-surface-2)] text-[var(--color-text)]",

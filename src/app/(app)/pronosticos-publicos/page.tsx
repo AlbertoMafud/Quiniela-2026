@@ -162,7 +162,7 @@ export default async function PronosticosPublicosPage() {
           Pronósticos públicos
         </h1>
         <p className="mt-1 text-sm sm:text-base text-[var(--color-text-muted)]">
-          Después de que pase el deadline de cada etapa, podrás ver los pronósticos
+          Después de que pase el Cierre de cada etapa, podrás ver los pronósticos
           de toda la familia consolidados por grupo y partido.
         </p>
       </header>
@@ -172,7 +172,7 @@ export default async function PronosticosPublicosPage() {
           <CardContent className="py-3 text-sm flex items-center gap-2">
             <Eye className="h-4 w-4 text-[var(--color-info)] shrink-0" />
             <p className="text-[var(--color-text)]">
-              <strong>Vista previa de admin:</strong> el deadline aún no se cumple,
+              <strong>Vista previa de admin:</strong> el Cierre aún no se cumple,
               pero estás viendo los pronósticos porque la previsualización para
               admins está activa.
             </p>
@@ -192,7 +192,7 @@ export default async function PronosticosPublicosPage() {
             <CardContent className="py-4 text-sm">
               <p className="text-[var(--color-text)]">
                 <strong>Aún no se pueden ver los pronósticos de grupos.</strong> Se
-                abrirán al pasar el deadline de fase de grupos (11 de junio).
+                abrirán al pasar el Cierre de la fase de grupos (11 de junio).
                 Los grupos se muestran aquí para que sepas qué hay disponible.
               </p>
             </CardContent>
@@ -295,7 +295,7 @@ export default async function PronosticosPublicosPage() {
                         </p>
                       ) : (
                         <p className="mt-1 text-xs text-[var(--color-text-subtle)]">
-                          Sin deadline configurado.
+                          Sin Cierre configurado.
                         </p>
                       )}
                     </>

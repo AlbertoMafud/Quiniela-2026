@@ -11,13 +11,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { computeStandings, bestThirds, type MatchScore } from "@/lib/standings";
+import { computeStandings, type MatchScore } from "@/lib/standings";
 import {
   computeTotals,
   type MatchData,
   type PredictionData,
   type PlayerData,
   type ThirdPickData,
+  type BracketPickData,
+  type TeamInfo,
 } from "@/lib/ranking-calculator";
 import { scoreMatch, type ScoringParams } from "@/lib/scoring";
 import {
@@ -44,6 +46,7 @@ interface MatchDB {
   away_team_code: string | null;
   home_score: number | null;
   away_score: number | null;
+  penalty_winner: string | null;
 }
 interface PlayerDB { id: string; name: string }
 interface PredDB {
@@ -54,6 +57,7 @@ interface PredDB {
 }
 interface TeamDB { code: string; name: string; group_letter: string; flag_emoji: string | null }
 interface ThirdDB { player_id: string; team_code: string }
+interface BracketDB { player_id: string; slot_id: string; round: Round; winner_team_code: string | null }
 
 const PODIUM = [
   { Icon: Trophy, color: "var(--color-gold)" },
@@ -73,12 +77,13 @@ export default async function RankingPage() {
     predictions,
     { data: teams },
     { data: thirdPicks },
+    { data: bracketPicks },
     { data: scoringRow },
   ] = await Promise.all([
     supabase.from("players").select("id, name").order("name"),
     supabase
       .from("matches")
-      .select("id, stage, group_letter, kickoff_at, home_team_code, away_team_code, home_score, away_score")
+      .select("id, stage, group_letter, kickoff_at, home_team_code, away_team_code, home_score, away_score, penalty_winner")
       .order("kickoff_at", { ascending: true }),
     fetchAllRows<PredDB>((from, to) =>
       supabase
@@ -89,6 +94,7 @@ export default async function RankingPage() {
     ),
     supabase.from("teams").select("code, name, group_letter, flag_emoji"),
     supabase.from("third_picks").select("player_id, team_code"),
+    supabase.from("bracket_picks").select("player_id, slot_id, round, winner_team_code"),
     supabase.from("scoring_params").select("*").eq("id", 1).maybeSingle<ScoringParams>(),
   ]);
 
@@ -97,11 +103,12 @@ export default async function RankingPage() {
   const predList = (predictions ?? []) as PredDB[];
   const teamList = (teams ?? []) as TeamDB[];
   const thirdList = (thirdPicks ?? []) as ThirdDB[];
+  const bracketList = (bracketPicks ?? []) as BracketDB[];
 
   const params: ScoringParams = scoringRow ?? {
     id: 1,
     exact_score_pts: 3,
-    correct_winner_pts: 2,
+    correct_winner_pts: 1,
     early_r32_bonus: 1,
     early_r16_bonus: 2,
     early_qf_bonus: 3,
@@ -134,15 +141,17 @@ export default async function RankingPage() {
     group_letter: t.group_letter,
   }));
   const standings = computeStandings(teamLite, finishedGroupMatches);
-  const actualBestThirds = bestThirds(standings).map((s) => s.team_code);
 
-  // Calcular totales por jugador
+  // Calcular totales por jugador (mismo motor que el dashboard).
   const matchDataForCalc: MatchData[] = matchList.map((m) => ({
     id: m.id,
     stage: m.stage,
     group_letter: m.group_letter,
+    home_team_code: m.home_team_code,
+    away_team_code: m.away_team_code,
     home_score: m.home_score,
     away_score: m.away_score,
+    penalty_winner: m.penalty_winner,
   }));
   const predDataForCalc: PredictionData[] = predList.map((p) => ({
     match_id: p.match_id,
@@ -158,13 +167,25 @@ export default async function RankingPage() {
     player_id: t.player_id,
     team_code: t.team_code,
   }));
+  const bracketDataForCalc: BracketPickData[] = bracketList.map((b) => ({
+    player_id: b.player_id,
+    slot_id: b.slot_id,
+    round: b.round,
+    winner_team_code: b.winner_team_code,
+  }));
+  const teamDataForCalc: TeamInfo[] = teamList.map((t) => ({
+    code: t.code,
+    name: t.name,
+    group_letter: t.group_letter,
+  }));
 
   const totals = computeTotals(
     playerDataForCalc,
     matchDataForCalc,
     predDataForCalc,
-    actualBestThirds,
     thirdDataForCalc,
+    bracketDataForCalc,
+    teamDataForCalc,
     params,
   );
 
@@ -367,8 +388,9 @@ function SummaryTable({
     player_id: string;
     player_name: string;
     group_points: number;
-    thirds_points: number;
-    bracket_points: number;
+    clasificados_points: number;
+    elim_points: number;
+    cuadro_points: number;
     total: number;
     group_predictions_made: number;
     group_matches_played: number;
@@ -406,11 +428,11 @@ function SummaryTable({
                 </th>
                 <th className="text-center py-2 px-2 font-medium">
                   <Sparkles className="inline h-3.5 w-3.5 text-[var(--color-warning)] mr-1" />
-                  Terceros
+                  Clasificados
                 </th>
                 <th className="text-center py-2 px-2 font-medium">
                   <Goal className="inline h-3.5 w-3.5 text-[var(--color-accent)] mr-1" />
-                  Cuadro
+                  Eliminatorias
                 </th>
                 <th className="text-right py-2 px-4 sm:px-2 font-semibold text-[var(--color-success)]">Total</th>
               </tr>
@@ -449,10 +471,10 @@ function SummaryTable({
                       {row.group_points}
                     </td>
                     <td className="text-center tabular-nums py-3 px-2 text-[var(--color-warning)] font-medium">
-                      {row.thirds_points}
+                      {row.clasificados_points}
                     </td>
                     <td className="text-center tabular-nums py-3 px-2 text-[var(--color-accent)] font-medium">
-                      {row.bracket_points}
+                      {row.elim_points + row.cuadro_points}
                     </td>
                     <td className="text-right tabular-nums py-3 px-4 sm:px-2 font-bold text-[var(--color-success)] text-base">
                       {row.total}

@@ -14,6 +14,7 @@
   --color-bg-tint: oklch(0.96 0.015 220);            /* para áreas con más vida */
   --color-surface: oklch(1 0 0);
   --color-surface-2: oklch(0.96 0.012 220);
+  --color-surface-3: oklch(0.93 0.014 220);
   --color-surface-tint-primary: oklch(0.97 0.05 145);  /* verde muy claro */
   --color-surface-tint-accent: oklch(0.97 0.05 27);    /* rosado muy claro */
   --color-surface-tint-info: oklch(0.97 0.05 265);     /* azul muy claro */
@@ -80,6 +81,7 @@
     --color-bg-tint: oklch(0.19 0.035 265);
     --color-surface: oklch(0.20 0.025 265);
     --color-surface-2: oklch(0.24 0.025 265);
+    --color-surface-3: oklch(0.28 0.025 265);
     --color-surface-tint-primary: oklch(0.25 0.06 145);
     --color-surface-tint-accent: oklch(0.25 0.07 27);
     --color-surface-tint-info: oklch(0.25 0.07 265);
@@ -87,7 +89,7 @@
     --color-border-strong: oklch(0.40 0.02 265);
     --color-text: oklch(0.96 0.01 220);
     --color-text-muted: oklch(0.68 0.015 220);
-    --color-text-subtle: oklch(0.50 0.015 220);
+    --color-text-subtle: oklch(0.62 0.015 220);
 
     --color-primary: oklch(0.75 0.20 145);
     --color-primary-hover: oklch(0.80 0.19 145);
@@ -120,6 +122,7 @@ html.dark {
   --color-bg-tint: oklch(0.19 0.035 265);
   --color-surface: oklch(0.20 0.025 265);
   --color-surface-2: oklch(0.24 0.025 265);
+  --color-surface-3: oklch(0.28 0.025 265);
   --color-surface-tint-primary: oklch(0.25 0.06 145);
   --color-surface-tint-accent: oklch(0.25 0.07 27);
   --color-surface-tint-info: oklch(0.25 0.07 265);
@@ -127,7 +130,7 @@ html.dark {
   --color-border-strong: oklch(0.40 0.02 265);
   --color-text: oklch(0.96 0.01 220);
   --color-text-muted: oklch(0.68 0.015 220);
-  --color-text-subtle: oklch(0.50 0.015 220);
+  --color-text-subtle: oklch(0.62 0.015 220);
 
   --color-primary: oklch(0.75 0.20 145);
   --color-primary-hover: oklch(0.80 0.19 145);

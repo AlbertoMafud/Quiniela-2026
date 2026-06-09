@@ -19,6 +19,7 @@ interface MatchRow {
   away_team_code: string | null;
   home_score: number | null;
   away_score: number | null;
+  penalty_winner: string | null;
 }
 
 interface TeamRow {
@@ -34,7 +35,7 @@ export default async function ResultadosPage() {
     supabase
       .from("matches")
       .select(
-        "id, stage, group_letter, kickoff_at, home_team_code, away_team_code, home_score, away_score",
+        "id, stage, group_letter, kickoff_at, home_team_code, away_team_code, home_score, away_score, penalty_winner",
       )
       .order("kickoff_at", { ascending: true }),
     supabase.from("teams").select("code, name, flag_emoji"),
@@ -60,6 +61,7 @@ export default async function ResultadosPage() {
         : { code: m.away_team_code ?? "?", name: "?", flag_emoji: null },
       home_score: m.home_score,
       away_score: m.away_score,
+      penalty_winner: m.penalty_winner,
     };
   });
 
@@ -87,7 +89,7 @@ export default async function ResultadosPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ResultsList matches={enriched} />
+          <ResultsList matches={enriched} teams={(teams ?? []) as TeamRow[]} />
         </CardContent>
       </Card>
     </div>

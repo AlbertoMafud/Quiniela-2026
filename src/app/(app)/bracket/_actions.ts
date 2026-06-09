@@ -33,7 +33,7 @@ export async function saveBracketPickAction(input: {
     .eq("stage", stageKey)
     .maybeSingle<{ deadline_at: string }>();
   if (deadline && new Date(deadline.deadline_at) <= new Date()) {
-    return { ok: false, error: `El deadline para ${parsed.data.round} ya pasó.` };
+    return { ok: false, error: `El Cierre de ${parsed.data.round} ya pasó.` };
   }
 
   if (parsed.data.winnerTeamCode === null) {

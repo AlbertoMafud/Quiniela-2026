@@ -143,7 +143,7 @@ export default async function GrupoPage({
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
           {revealed
             ? `${matchRows.length} partidos · ${playerRows.length} jugadores con pronóstico posible.`
-            : "Los pronósticos se mostrarán al pasar el deadline de fase de grupos."}
+            : "Los pronósticos se mostrarán al pasar el Cierre de la fase de grupos."}
         </p>
       </header>
 
@@ -152,7 +152,7 @@ export default async function GrupoPage({
           <CardContent className="py-3 text-sm flex items-center gap-2">
             <Eye className="h-4 w-4 text-[var(--color-info)] shrink-0" />
             <p className="text-[var(--color-text)]">
-              <strong>Vista previa de admin:</strong> el deadline aún no se cumple,
+              <strong>Vista previa de admin:</strong> el Cierre aún no se cumple,
               pero estás viendo los pronósticos porque la previsualización para
               admins está activa.
             </p>
@@ -164,7 +164,7 @@ export default async function GrupoPage({
         <Card style={{ background: "var(--color-surface-tint-accent)" }}>
           <CardContent className="py-4 text-sm text-[var(--color-text)]">
             Aún no se pueden ver los pronósticos del grupo. Vuelve después del{" "}
-            {deadline ? formatDateMx(deadline.deadline_at) : "deadline de grupos"}.
+            {deadline ? formatDateMx(deadline.deadline_at) : "Cierre de grupos"}.
           </CardContent>
         </Card>
       ) : (

@@ -166,7 +166,7 @@ export default async function RondaPage({
           <CardContent className="py-3 text-sm flex items-center gap-2">
             <Eye className="h-4 w-4 text-[var(--color-info)] shrink-0" />
             <p className="text-[var(--color-text)]">
-              <strong>Vista previa de admin:</strong> el deadline aún no se cumple,
+              <strong>Vista previa de admin:</strong> el Cierre aún no se cumple,
               pero estás viendo los pronósticos porque la previsualización para
               admins está activa.
             </p>
