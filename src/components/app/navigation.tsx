@@ -13,6 +13,7 @@ import {
   ChartLine,
   Menu,
   LogOut,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/app/(auth)/_actions";
@@ -34,6 +35,7 @@ const PRIMARY_LINKS = [
 const SECONDARY_LINKS = [
   { href: "/estadisticas", label: "Estadísticas", icon: ChartLine },
   { href: "/pronosticos-publicos", label: "Públicos", icon: Users },
+  { href: "/perfil", label: "Perfil", icon: User },
 ] as const;
 
 export function TopNav({ playerName, isAdmin }: NavProps) {
