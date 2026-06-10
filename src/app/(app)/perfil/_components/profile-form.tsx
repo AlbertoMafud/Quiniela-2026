@@ -52,7 +52,7 @@ export function ProfileForm({ currentName }: { currentName: string }) {
           <p className="text-sm text-[var(--color-danger)]">{state.error}</p>
         )}
 
-        {state.ok && (
+        {state.ok && !pending && (
           <p className="text-sm text-[var(--color-success)]">
             Nombre actualizado. La próxima vez entra con tu nuevo nombre.
           </p>

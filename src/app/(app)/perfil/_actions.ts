@@ -35,21 +35,23 @@ export async function updatePlayerName(
   // Nombre actual (para no-op y audit log).
   const { data: me } = await supabase
     .from("players")
-    .select("id, name")
+    .select("name")
     .eq("id", session.playerId)
-    .maybeSingle<{ id: string; name: string }>();
+    .maybeSingle<{ name: string }>();
   if (!me) redirect("/login");
 
   // No-op: idéntico exacto (un cambio de sólo mayúsculas SÍ se permite).
   if (me.name === newName) return { ok: true };
 
-  // Unicidad case-insensitive contra el resto de jugadores.
-  const { data: others } = await supabase
+  // Unicidad case-insensitive: filtramos en BD por coincidencia de nombre
+  // (ilike acota a 0-1 filas; namesEqualCI es la autoridad final del choque).
+  const { data: clashes } = await supabase
     .from("players")
     .select("id, name")
     .neq("id", session.playerId)
+    .ilike("name", newName)
     .returns<{ id: string; name: string }[]>();
-  const clash = (others ?? []).some((p) => namesEqualCI(p.name, newName));
+  const clash = (clashes ?? []).some((p) => namesEqualCI(p.name, newName));
   if (clash) {
     return { error: "Ya existe un jugador con ese nombre. Elige otro." };
   }
@@ -68,6 +70,8 @@ export async function updatePlayerName(
     return { error: "No se pudo cambiar el nombre. Intenta de nuevo." };
   }
 
+  // logAdminAction es un insert genérico a audit_log (pese al nombre); aquí el
+  // actor es el propio jugador renombrándose.
   await logAdminAction(session.playerId, "rename_self", session.playerId, {
     old: me.name,
     new: newName,
