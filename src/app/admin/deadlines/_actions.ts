@@ -27,7 +27,10 @@ const KNOWN_STAGES = [
 
 const deadlineSchema = z.object({
   stage: z.enum(KNOWN_STAGES),
-  deadline_at: z.string().min(1, "Fecha inválida"),
+  deadline_at: z
+    .string()
+    .min(1, "Fecha inválida")
+    .refine((v) => !Number.isNaN(new Date(v).getTime()), "Fecha inválida"),
 });
 
 export async function saveDeadline(
