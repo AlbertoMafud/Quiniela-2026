@@ -2,19 +2,19 @@ project_id = "quiniela-familia-2026"
 
 [api]
 enabled = true
-port = 54321
+port = 54331
 schemas = ["public", "storage"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-port = 54322
-shadow_port = 54320
+port = 54332
+shadow_port = 54330
 major_version = 17
 
 [studio]
 enabled = true
-port = 54323
+port = 54333
 
 [inbucket]
 enabled = false
@@ -23,7 +23,10 @@ enabled = false
 enabled = false
 
 [auth]
-enabled = false
+enabled = true
 
 [edge_runtime]
+enabled = false
+
+[analytics]
 enabled = false
