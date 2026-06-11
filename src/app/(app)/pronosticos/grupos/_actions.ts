@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
+import { checkStageEditable, getTournamentStart } from "@/lib/gates-server";
 
 const schema = z.object({
   matchId: z.string().min(1),
@@ -47,23 +48,24 @@ export async function savePredictionAction(input: {
   if (!match) return { ok: false, error: "Partido no encontrado." };
 
   const deadlineStage =
-    match.stage === "group"
-      ? "group_stage"
-      : `${match.stage}_scores`;
+    match.stage === "group" ? "group_stage" : `${match.stage}_scores`;
 
-  const { data: deadline } = await supabase
-    .from("deadlines")
-    .select("deadline_at")
-    .eq("stage", deadlineStage)
-    .maybeSingle<{ deadline_at: string }>();
-
-  const now = new Date();
-  if (deadline && new Date(deadline.deadline_at) <= now) {
-    return { ok: false, error: "Cierre pasado: no puedes editar este pronóstico." };
+  const gate = await checkStageEditable(deadlineStage);
+  if (!gate.editable) {
+    return { ok: false, error: gate.reason ?? "Etapa cerrada." };
   }
 
-  if (new Date(match.kickoff_at) <= now) {
-    return { ok: false, error: "El partido ya empezó." };
+  const now = new Date();
+  if (gate.override !== "open") {
+    if (new Date(match.kickoff_at) <= now) {
+      return { ok: false, error: "El partido ya empezó." };
+    }
+    if (match.stage === "group") {
+      const start = await getTournamentStart();
+      if (start && new Date(start) <= now) {
+        return { ok: false, error: "El torneo ya inició: los grupos están cerrados." };
+      }
+    }
   }
 
   const isElimination = match.stage !== "group";

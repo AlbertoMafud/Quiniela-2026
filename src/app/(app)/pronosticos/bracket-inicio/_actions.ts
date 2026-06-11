@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
+import { checkStageEditable } from "@/lib/gates-server";
 
 const schema = z.object({
   round: z.enum(["r32", "r16", "qf", "sf", "final"]),
@@ -38,14 +39,9 @@ export async function saveEarlyPickAction(input: {
     return { ok: false, error: "El cuadro desde el inicio no está activo." };
   }
 
-  // Deadline guard.
-  const { data: deadline } = await supabase
-    .from("deadlines")
-    .select("deadline_at")
-    .eq("stage", "early_bracket")
-    .maybeSingle<{ deadline_at: string }>();
-  if (deadline && new Date(deadline.deadline_at) <= new Date()) {
-    return { ok: false, error: "El cierre del cuadro desde el inicio ya pasó." };
+  const gate = await checkStageEditable("early_bracket");
+  if (!gate.editable) {
+    return { ok: false, error: gate.reason ?? "Etapa cerrada." };
   }
 
   if (parsed.data.winnerTeamCode === null) {

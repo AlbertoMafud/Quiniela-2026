@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { computeStandings, pickThirds, type MatchScore } from "@/lib/standings";
+import { checkStageEditable } from "@/lib/gates-server";
 
 const schema = z.object({
   teamCodes: z.array(z.string().min(1)).length(8, "Debes seleccionar 8 equipos."),
@@ -66,15 +67,9 @@ export async function saveThirdsAction(
 
   const supabase = adminClient();
 
-  // Validar deadline de 'thirds'.
-  const { data: deadline } = await supabase
-    .from("deadlines")
-    .select("deadline_at")
-    .eq("stage", "thirds")
-    .maybeSingle<{ deadline_at: string }>();
-
-  if (deadline && new Date(deadline.deadline_at) <= new Date()) {
-    return { ok: false, error: "El Cierre de terceros ya pasó." };
+  const gate = await checkStageEditable("thirds");
+  if (!gate.editable) {
+    return { ok: false, error: gate.reason ?? "Etapa cerrada." };
   }
 
   // Validar elegibilidad: cada código debe ser hoy un tercero del jugador.
