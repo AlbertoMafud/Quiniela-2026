@@ -1,6 +1,6 @@
 # Quiniela Familia 2026 — Status
 
-> Última actualización: **2026-06-08** (fix paginado de conteos; previo: calendario oficial + bug terceros, en prod)
+> Última actualización: **2026-06-09** (feature: cambiar nombre self-service, en prod; previo: fix paginado de conteos)
 
 ## Qué es esto
 
@@ -35,6 +35,19 @@ Familia. Auth por **PIN** (sin email, sin password). Admins actuales: **Alberto*
 - **Admin siempre ve todo** (incluyendo pronósticos de otros antes del cierre, para poder auditar).
 - **Privacidad de pronósticos**: cada jugador no-admin SOLO ve los suyos hasta que pase el cierre (`deadline_at`) de esa etapa. Después se revelan todos. Aplica a `/ranking`.
 - **NO tocar `quiniela-original/` ni `quiniela-2026/`** (son la app real de Adriana en Firebase prod).
+
+## Cambios recientes (sesión 2026-06-09)
+
+**feat(perfil): cambiar nombre self-service.** Cada jugador cambia su propio nombre desde `/perfil` (link nuevo en navegación). Sin límites.
+
+- Flujo: spec → plan → ejecución por subagentes (doble review spec+calidad). Docs en `docs/superpowers/specs/` y `docs/superpowers/plans/`.
+- `src/lib/profile.ts`: helpers puros `nameSchema` (3–30, trim) + `namesEqualCI` (con test `npx tsx scripts/test-profile.ts`).
+- Server action `updatePlayerName` (`src/app/(app)/perfil/_actions.ts`): valida → no-op si idéntico → unicidad **case-insensitive** (`ilike` + `namesEqualCI` + red de seguridad `23505`) → update → audit (`rename_self`) → revalidate.
+- **El nombre es el login**: tras renombrar, el siguiente login es con el nombre nuevo + mismo PIN. La sesión activa sobrevive (cookie guarda `playerId`). La UI lo avisa.
+- **Cero cambios de BD** — `name` ya existía y es `unique`; puntos/ranking cuelgan de `player_id`. No recálculo.
+- Cambio de solo-mayúsculas (pedro→Pedro) SÍ se permite (no-op solo si idéntico exacto).
+- Verificado: typecheck ✅, test helpers ✅, archivos nuevos lint-clean. PR #1 mergeado a `main`, **en prod** (`/perfil` redirige a login como esperado).
+- Pendiente fuera de alcance: lint pre-existente roto en `theme-toggle.tsx` y `online-players-widget.tsx` (reglas React 19) — no es de esta feature.
 
 ## Cambios recientes (sesión 2026-06-08)
 
@@ -89,7 +102,37 @@ Archivos: `scoring.ts` (const `CUADRO_BONUS` 2/3/4/5/6), `ranking-calculator.ts`
 
 **Verificado:** `scripts/test-scoring.ts` (`npx tsx`) ejecuta el motor con el ejemplo de Adriana → 33 pts (grupos 16 / clasif 3 / elim 6 / cuadro 8). ✅ typecheck + lint limpios.
 
-**⚠️ PENDIENTE CRÍTICO — el fix de "ganador = 1" NO está vivo hasta correr el SQL:** el código lee `correct_winner_pts` de la BD, que sigue en **2**. Hay que correr `scripts/fix-scoring-winner-pts.sql` en local (para probar) y en prod (con metodología backup→local→dry-run→commit). Hasta entonces, grupos/elim pagan ganador=2. Los defaults de esquema (`combined-setup.sql`, init) ya quedaron en 1 para BD nuevas.
+**`correct_winner_pts = 1`: ✅ aplicado a prod** (Supabase SQL Editor). Verificado: `exact=3, winner=1`. El código lee este valor de la BD.
+
+### Deploy a prod + incidente + red de seguridad (sesión 2026-06-08, cont.)
+
+**Deploy:** commit `282c35b` pusheado a `main` → Vercel. Incluye Tanda A+B + rediseño de scoring + middleware a `src/`. `pnpm build` pasó (el output lista `Proxy (Middleware)` → el middleware en `src/` ya corre).
+
+**Incidente (resuelto, sin pérdida de datos):** al "probar en local", el dev en realidad apuntaba a la **nube (prod)** porque `.env.local` tenía la URL de prod. Las herramientas de Admin → Herramientas ("asignar marcadores ficticios" + "crear matches de eliminatorias") cayeron en **prod** → aparecieron puntos. **Recuperado limpio:**
+- Borrado: 1 pronóstico sobre KO + 31 partidos KO ficticios (`delete from predictions where match_id in (select id from matches where stage<>'group')` y `delete from matches where stage<>'group'`).
+- **Cero pérdida real:** los 1268 pronósticos, 20 jugadores, 88 terceros intactos. Verificado `1268 / 0 / 1`.
+- Clave: el botón "limpiar resultados" y las herramientas de relleno **NO borran pronósticos** (solo tocan/agregan `matches`); el único que sí borra todo es `supabase/reset-test-data.sql` — y **no se corrió**.
+
+**Bug encontrado (dashboard 73/72):** el conteo "Pronósticos de grupos" sumaba TODOS los pronósticos (incluía los de KO). Arreglado en `(app)/page.tsx` (cuenta solo etapa `group` desde `myPredsWithStage`). **⏳ Sin pushear** → va al próximo deploy (no urge; muerde en fase KO real).
+
+**Red de seguridad montada — Supabase LOCAL con Docker:**
+- `supabase/config.toml`: puertos a **5433x** (api 54331 / db 54332 / studio 54333 / shadow 54330) para convivir con el stack de "App_Deportistas"; `[analytics] enabled=false` (port conflict); `[auth] enabled=true` (necesario para que la CLI emita las llaves).
+- `npx supabase start` corre migraciones + seed → local con 48 equipos, 72 partidos, winner=1. Studio: **http://127.0.0.1:54333**.
+- Arreglado el BOM de `.env.local` (rompía la CLI de supabase).
+- **FALTA (Alberto):** apuntar `.env.local` al local. Respaldar primero (`copy .env.local .env.local.prod.bak`), luego cambiar 3 líneas:
+  ```
+  NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54331
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon local, de `npx supabase status -o env`>
+  SUPABASE_SERVICE_ROLE_KEY=<service_role local>
+  ```
+  (Llaves demo, no secretas. Guardar como UTF-8 sin BOM.) Señal de que funcionó: la app muestra equipos "Equipo A1…" (seed), no los reales.
+- Regla a futuro: **local dev = Supabase local; prod (Vercel) = su propia BD.** Nunca cruzar. Para datos realistas en local: restaurar un backup de prod (`docker exec -i supabase_db_quiniela-familia-2026 psql -U postgres < backups\...sql`).
+
+### Pendientes abiertos (próxima sesión)
+- [ ] Apuntar `.env.local` al Supabase local (3 líneas de arriba) + verificar aislamiento.
+- [ ] Push del fix de conteo del dashboard (73/72) — antes de la fase KO.
+- [ ] Commitear `supabase/config.toml` (cambios de puertos/auth/analytics — solo afectan local).
+- [ ] B-1/B-3 (fijar equipos KO + "quién pasó" a mano) se usan cuando arranquen las eliminatorias (~28-jun).
 
 ## Cambios recientes (sesión 2026-06-07)
 
