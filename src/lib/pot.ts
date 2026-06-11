@@ -83,14 +83,17 @@ export function distributePrizes(
   let position = 1;
   for (const group of groups) {
     if (position > 3) break;
+    // Todas las posiciones que abarca el grupo empatado (para etiquetar bien
+    // empates que rebasan el podio). El dinero sigue correcto: pctByPlace[>3]
+    // es undefined => 0, así que solo las posiciones premiadas (1-3) suman %.
     const places: number[] = [];
     for (let i = 0; i < group.length; i++) {
-      const place = position + i;
-      if (place <= 3) places.push(place);
+      places.push(position + i);
     }
     if (places.length > 0) {
       const pct = places.reduce((s, p) => s + (pctByPlace[p] ?? 0), 0);
       const amountTotal = Math.round((total * pct) / 100);
+      // Nota: el redondeo por ganador puede diferir del total en ±1 peso (por diseño).
       const amountPerWinner = Math.round(amountTotal / group.length);
       awards.push({ places, pct, amountTotal, amountPerWinner, winners: group });
     }
