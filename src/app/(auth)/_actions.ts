@@ -4,6 +4,7 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { adminClient } from "@/lib/supabase/admin";
 import { createSession, clearSession, hashPin, verifyPin } from "@/lib/auth";
+import { isRegistrationOpen } from "@/lib/gates-server";
 
 const registerSchema = z
   .object({
@@ -43,6 +44,9 @@ export async function registerAction(
       fieldErrors[k] = issue.message;
     }
     return { error: parsed.error.issues[0]?.message, fieldErrors };
+  }
+  if (!(await isRegistrationOpen())) {
+    return { error: "Los registros están cerrados. El torneo ya inició." };
   }
   const { name, pin } = parsed.data;
 
