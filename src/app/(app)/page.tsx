@@ -70,7 +70,6 @@ export default async function DashboardPage() {
     { data: nextMatch },
     { count: totalPlayers },
     { count: totalGroupMatches },
-    { count: myGroupPreds },
     { count: myThirds },
     { count: myBracketPicks },
     { data: recentResults },
@@ -101,7 +100,6 @@ export default async function DashboardPage() {
       .maybeSingle<MatchRow>(),
     supabase.from("players").select("*", { count: "exact", head: true }),
     supabase.from("matches").select("*", { count: "exact", head: true }).eq("stage", "group"),
-    supabase.from("predictions").select("*", { count: "exact", head: true }).eq("player_id", session.playerId),
     supabase.from("third_picks").select("*", { count: "exact", head: true }).eq("player_id", session.playerId),
     supabase.from("bracket_picks").select("*", { count: "exact", head: true }).eq("player_id", session.playerId),
     supabase
@@ -141,7 +139,11 @@ export default async function DashboardPage() {
   const myScore = scoresList.find((s) => s.player_id === session.playerId);
 
   const groupTotal = totalGroupMatches ?? 72;
-  const groupDone = myGroupPreds ?? 0;
+  // Solo pronósticos de fase de grupos (un pronóstico de KO no debe inflar este conteo).
+  const groupDone = ((myPredsWithStage ?? []) as PredWithStage[]).filter((row) => {
+    const m = Array.isArray(row.matches) ? row.matches[0] : row.matches;
+    return m?.stage === "group";
+  }).length;
   const thirdsTotal = 8;
   const thirdsDone = myThirds ?? 0;
   const bracketTotal = 31;
