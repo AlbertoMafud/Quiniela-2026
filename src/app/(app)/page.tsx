@@ -9,6 +9,15 @@ import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { formatDateMx, formatMatchDayMx } from "@/lib/utils";
 import { DashboardWelcome } from "@/components/app/dashboard-welcome";
 import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
+import {
+  computePot,
+  prizeAmounts,
+  distributePrizes,
+  DEFAULT_CUOTA,
+  DEFAULT_SPLIT,
+  type Split,
+  type PrizeAward,
+} from "@/lib/pot";
 
 const ROUND_SIZE: Record<Round, number> = {
   r32: 16,
@@ -78,6 +87,7 @@ export default async function DashboardPage() {
     { data: allMatchStages },
     { data: myPredsWithStage },
     { data: myBracketByRoundRaw },
+    { data: potConfig },
   ] = await Promise.all([
     supabase
       .from("players")
@@ -123,6 +133,10 @@ export default async function DashboardPage() {
       .from("bracket_picks")
       .select("round")
       .eq("player_id", session.playerId),
+    supabase
+      .from("admin_config")
+      .select("key, value")
+      .in("key", ["pot_cuota", "pot_split"]),
   ]);
 
   const teamMap = new Map(((teams ?? []) as TeamRow[]).map((t) => [t.code, t]));
@@ -132,6 +146,28 @@ export default async function DashboardPage() {
     player_name: t.player_name,
     total_points: t.total,
   }));
+  const potMap = new Map(
+    ((potConfig ?? []) as Array<{ key: string; value: unknown }>).map((r) => [r.key, r.value]),
+  );
+  const cuotaRaw = potMap.get("pot_cuota");
+  const cuota = typeof cuotaRaw === "number" ? cuotaRaw : DEFAULT_CUOTA;
+  const splitRaw = potMap.get("pot_split");
+  const split: Split =
+    splitRaw && typeof splitRaw === "object"
+      ? {
+          first: Number((splitRaw as Record<string, unknown>).first ?? DEFAULT_SPLIT.first),
+          second: Number((splitRaw as Record<string, unknown>).second ?? DEFAULT_SPLIT.second),
+          third: Number((splitRaw as Record<string, unknown>).third ?? DEFAULT_SPLIT.third),
+        }
+      : DEFAULT_SPLIT;
+  const pot = computePot(cuota, totalPlayers ?? 0);
+  const potAmounts = prizeAmounts(pot, split);
+  const potAwards = distributePrizes(
+    pot,
+    split,
+    totals.map((t) => ({ player_id: t.player_id, player_name: t.player_name, total: t.total })),
+  );
+
   const recents = (recentResults ?? []) as MatchRow[];
   const earlyBracketOn = Boolean(earlyEnabled?.value);
 
@@ -198,6 +234,8 @@ export default async function DashboardPage() {
         overallTotal={overallTotal}
         overallPct={overallPct}
       />
+
+      <BolsaCard pot={pot} amounts={potAmounts} awards={potAwards} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         <DeadlineCard deadline={nextDeadline} />
@@ -836,6 +874,98 @@ function QuickActions({ earlyBracketOn }: { earlyBracketOn: boolean }) {
         </Link>
       ))}
     </div>
+  );
+}
+
+function BolsaCard({
+  pot,
+  amounts,
+  awards,
+}: {
+  pot: number;
+  amounts: { first: number; second: number; third: number };
+  awards: PrizeAward[];
+}) {
+  const fmt = (n: number) =>
+    n.toLocaleString("es-MX", {
+      style: "currency",
+      currency: "MXN",
+      maximumFractionDigits: 0,
+    });
+  const placeLabel = (places: number[]) =>
+    places.length === 1
+      ? `${places[0]}° lugar`
+      : `${places[0]}°–${places[places.length - 1]}° (empate)`;
+  const medal = ["var(--color-gold)", "var(--color-text-subtle)", "#B87333"];
+  const headline = [
+    { p: "1° lugar", a: amounts.first },
+    { p: "2° lugar", a: amounts.second },
+    { p: "3° lugar", a: amounts.third },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-[var(--color-gold)]" />
+          Bolsa acumulada
+        </CardTitle>
+        <CardDescription>
+          Todos aportan; los 3 primeros lugares se reparten el bote.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <p className="text-xs text-[var(--color-text-muted)]">Bolsa total</p>
+          <p className="font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums">
+            {fmt(pot)}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          {headline.map((x, i) => (
+            <div
+              key={x.p}
+              className="rounded-[var(--radius-md)] bg-[var(--color-surface-2)] p-3 text-center"
+            >
+              <p className="text-xs font-semibold" style={{ color: medal[i] }}>
+                {x.p}
+              </p>
+              <p className="mt-1 text-base font-semibold tabular-nums">{fmt(x.a)}</p>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <p className="text-xs uppercase tracking-wider font-semibold text-[var(--color-text-subtle)] mb-2">
+            Quién va ganando
+          </p>
+          {awards.length === 0 ? (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              Nadie tiene puntos todavía.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {awards.map((aw, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-medium">{placeLabel(aw.places)}:</span>{" "}
+                    {aw.winners.map((w) => w.player_name).join(", ")}
+                  </span>
+                  <span className="shrink-0 tabular-nums font-semibold">
+                    {fmt(aw.amountPerWinner)}
+                    {aw.winners.length > 1 ? " c/u" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
