@@ -1,6 +1,6 @@
 # Quiniela Familia 2026 — Status
 
-> Última actualización: **2026-06-09** (feature: cambiar nombre self-service, en prod; previo: fix paginado de conteos)
+> Última actualización: **2026-06-10** (features: bolsa acumulada + cierres por etapa, en prod; previo: cambiar nombre self-service)
 
 ## Qué es esto
 
@@ -35,6 +35,34 @@ Familia. Auth por **PIN** (sin email, sin password). Admins actuales: **Alberto*
 - **Admin siempre ve todo** (incluyendo pronósticos de otros antes del cierre, para poder auditar).
 - **Privacidad de pronósticos**: cada jugador no-admin SOLO ve los suyos hasta que pase el cierre (`deadline_at`) de esa etapa. Después se revelan todos. Aplica a `/ranking`.
 - **NO tocar `quiniela-original/` ni `quiniela-2026/`** (son la app real de Adriana en Firebase prod).
+
+## Cambios recientes (sesión 2026-06-10)
+
+**feat: bolsa acumulada + cierres por etapa.** Dos features, flujo completo spec → plan → ejecución por subagentes (implementador + doble review spec/calidad por tarea) → prod. Docs: `docs/superpowers/specs/2026-06-10-bolsa-y-cierres-design.md` y `docs/superpowers/plans/2026-06-10-bolsa-y-cierres.md`. Mergeado a `main` (commit `d580f13`), **en prod** y verificado Ready en Vercel.
+
+**Principio:** cero migración de esquema. Toda la config nueva en `admin_config` (jsonb); lógica en funciones puras testeables (`npx tsx`). Riesgo de datos 🟢 nulo. Los lectores usan defaults cuando la llave falta → prod no necesitó seeding manual.
+
+**1) Bolsa (dashboard, visible a TODOS los jugadores):**
+- `src/lib/pot.ts` (puro, `scripts/test-pot.ts`): `computePot` (cuota × #jugadores), `prizeAmounts` (montos 1°/2°/3°), `distributePrizes` (reparto con **empates divididos en partes iguales**: agrupa por total igual, suma los % de las posiciones premiadas que abarca, divide entre los empatados). `±1 peso` de redondeo por diseño.
+- `/admin/bolsa` (`page.tsx` + `_actions.ts` + `bolsa-form.tsx`): cuota + split %, valida suma 100. Link "Bolsa" en `admin-nav`.
+- Card "Bolsa acumulada" en `(app)/page.tsx`: total + 1°/2°/3° + quién va ganando. Lee de `getRankingTotals()` (ya paginado). Defaults: cuota **400**, split **50/30/20**.
+
+**2) Cierres por etapa + registro + huso horario:**
+- `src/lib/tz.ts` (`scripts/test-tz.ts`): `cdmxInputToUtcISO` / `utcISOToCdmxInput`. **Arregla bug latente**: el round-trip de `/admin/deadlines` guardaba el `datetime-local` como hora del servidor (UTC en Vercel) → se corría 6h. Ahora interpreta como CDMX (offset fijo -06:00, sin horario de verano desde 2023).
+- `src/lib/gates.ts` (puro, `scripts/test-gates.ts`) + `gates-server.ts` (lector): `resolveStageGate` / `resolveRegistration` + `checkStageEditable` / `isRegistrationOpen` / `getTournamentStart`.
+- **Override manual por etapa** (Auto/Abierto/Cerrado), en `admin_config.stage_overrides` (objeto jsonb). `closed` bloquea, `open` reabre aunque pasó el cierre, `auto` respeta el deadline. Cableado en los 4 guardados (`grupos`, `terceros`, `bracket`, `bracket-inicio`).
+- **Cierre de registro por `tournament_start_at`** + `registration_override`. `registerAction` rechaza (hard); `/login` oculta "Soy nuevo" (soft) y es `force-dynamic` (refleja el cierre por fecha sin rebuild). En grupos, `tournament_start_at` también bloquea edición (una fecha cierra registro + grupos).
+- `/admin/deadlines` reescrito: card "Inicio del torneo y registro" + control 3-estados por etapa + tz correcto.
+
+**Llaves nuevas en `admin_config`:** `pot_cuota`, `pot_split`, `tournament_start_at`, `registration_override`, `stage_overrides`. Migración seed idempotente `20260610000008` (solo para DBs nuevas/locales; prod usa defaults + upsert al guardar).
+
+**Verificación:** 26/26 tests tsx · typecheck · lint (limpio en lo tocado) · `pnpm build`. Review final holístico: ready to merge. **Smoke en navegador de los toggles de admin: PENDIENTE** (no corrido; hacerlo con cuidado en prod o en local).
+
+**Rollback si hace falta:** `vercel rollback https://quiniela-mundial-2026-qygcw72yj-albertomafuds-projects.vercel.app` (prod anterior). Código + config aditiva, sin cambios destructivos.
+
+**OJO — aún sin configurar (lo hace Alberto como admin en prod):**
+- Registros **siguen abiertos** hasta que se fije `tournament_start_at` en `/admin/deadlines`.
+- Cuota/split están en defaults (400 · 50/30/20); ajustar en `/admin/bolsa` si cambia.
 
 ## Cambios recientes (sesión 2026-06-09)
 
@@ -130,8 +158,8 @@ Archivos: `scoring.ts` (const `CUADRO_BONUS` 2/3/4/5/6), `ranking-calculator.ts`
 
 ### Pendientes abiertos (próxima sesión)
 - [ ] Apuntar `.env.local` al Supabase local (3 líneas de arriba) + verificar aislamiento.
-- [ ] Push del fix de conteo del dashboard (73/72) — antes de la fase KO.
-- [ ] Commitear `supabase/config.toml` (cambios de puertos/auth/analytics — solo afectan local).
+- [x] **Push del fix de conteo del dashboard (73/72)** — hecho (commit `9225eee`, en prod desde 2026-06-10).
+- [x] **Commitear `supabase/config.toml`** — hecho (commit `d0ad488`, en prod desde 2026-06-10).
 - [ ] B-1/B-3 (fijar equipos KO + "quién pasó" a mano) se usan cuando arranquen las eliminatorias (~28-jun).
 
 ## Cambios recientes (sesión 2026-06-07)
