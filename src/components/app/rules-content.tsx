@@ -48,8 +48,8 @@ export async function RulesContent({ compact = false }: { compact?: boolean }) {
         <CardHeader>
           <CardTitle>Clasificados a 16avos</CardTitle>
           <CardDescription>
-            Al terminar los grupos se arman tus 32 clasificados: el 1° y 2° de cada
-            grupo (según tus marcadores) más tus 8 mejores terceros.
+            Tus primeros, segundos y mejores terceros elegidos definen tus 32
+            clasificados. Ganas 1 punto por cada uno que realmente pasó a 16avos.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
