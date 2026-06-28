@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Trophy, Medal, Award, Globe, Sparkles, Goal } from "lucide-react";
+import { Trophy, Medal, Award, Globe, Sparkles, Goal, GitBranch } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
@@ -417,7 +417,7 @@ function SummaryTable({
       </CardHeader>
       <CardContent className="px-0 sm:px-6">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
                 <th className="text-left py-2 px-4 sm:px-2 font-medium w-10">#</th>
@@ -433,6 +433,10 @@ function SummaryTable({
                 <th className="text-center py-2 px-2 font-medium">
                   <Goal className="inline h-3.5 w-3.5 text-[var(--color-accent)] mr-1" />
                   Eliminatorias
+                </th>
+                <th className="text-center py-2 px-2 font-medium">
+                  <GitBranch className="inline h-3.5 w-3.5 text-[var(--color-success)] mr-1" />
+                  Cuadro
                 </th>
                 <th className="text-right py-2 px-4 sm:px-2 font-semibold text-[var(--color-success)]">Total</th>
               </tr>
@@ -474,7 +478,10 @@ function SummaryTable({
                       {row.clasificados_points}
                     </td>
                     <td className="text-center tabular-nums py-3 px-2 text-[var(--color-accent)] font-medium">
-                      {row.elim_points + row.cuadro_points}
+                      {row.elim_points}
+                    </td>
+                    <td className="text-center tabular-nums py-3 px-2 text-[var(--color-success)] font-medium">
+                      {row.cuadro_points}
                     </td>
                     <td className="text-right tabular-nums py-3 px-4 sm:px-2 font-bold text-[var(--color-success)] text-base">
                       {row.total}

@@ -31,6 +31,7 @@ export interface PlayerProgress {
   third_picks: number;
   early_bracket_picks: number;
   bracket_picks: Partial<Record<KnockoutRound, number>>;
+  marcador_picks: Partial<Record<KnockoutRound, number>>;
 }
 
 export interface ProgressMeta {
@@ -39,6 +40,8 @@ export interface ProgressMeta {
   early_bracket_total: number;
   knockout_rounds: KnockoutRound[];
   knockout_totals: Partial<Record<KnockoutRound, number>>;
+  marcador_rounds: KnockoutRound[];
+  marcador_totals: Partial<Record<KnockoutRound, number>>;
 }
 
 export default async function ProgresoPage() {
@@ -57,7 +60,7 @@ export default async function ProgresoPage() {
       .from("players")
       .select("id, name, is_admin, last_seen_at")
       .order("name"),
-    supabase.from("matches").select("id, stage"),
+    supabase.from("matches").select("id, stage, home_team_code, away_team_code"),
     fetchAllRows<{ player_id: string; match_id: string }>((from, to) =>
       supabase.from("predictions").select("player_id, match_id").order("id").range(from, to),
     ),
@@ -74,12 +77,23 @@ export default async function ProgresoPage() {
   ]);
 
   // Match stage lookup & count per stage
-  type MatchRow = { id: string; stage: string };
+  type MatchRow = {
+    id: string;
+    stage: string;
+    home_team_code: string | null;
+    away_team_code: string | null;
+  };
   const matchStage = new Map<string, string>();
   const matchCount = new Map<string, number>();
+  // Partidos por etapa con AMBOS equipos ya resueltos (real-jugables, no solo
+  // el slot del cuadro) — denominador del Marcador, distinto del de Cuadro.
+  const marcadorMatchCount = new Map<string, number>();
   for (const m of (allMatches ?? []) as MatchRow[]) {
     matchStage.set(m.id, m.stage);
     matchCount.set(m.stage, (matchCount.get(m.stage) ?? 0) + 1);
+    if (m.home_team_code && m.away_team_code) {
+      marcadorMatchCount.set(m.stage, (marcadorMatchCount.get(m.stage) ?? 0) + 1);
+    }
   }
 
   // Admin config
@@ -99,6 +113,20 @@ export default async function ProgresoPage() {
         (groupByPlayer.get(pred.player_id) ?? 0) + 1,
       );
     }
+  }
+
+  // Marcador (predictions) por jugador por ronda de eliminatoria — mismas
+  // filas de `predictions` ya traídas arriba, solo agrupadas por etapa de KO
+  // en vez de sumadas todas en el contador de grupos.
+  const marcadorByPlayer = new Map<string, Map<string, number>>();
+  for (const pred of (allPreds ?? []) as PredRow[]) {
+    const stage = matchStage.get(pred.match_id);
+    if (!stage || stage === "group") continue;
+    if (!marcadorByPlayer.has(pred.player_id)) {
+      marcadorByPlayer.set(pred.player_id, new Map());
+    }
+    const rm = marcadorByPlayer.get(pred.player_id)!;
+    rm.set(stage, (rm.get(stage) ?? 0) + 1);
   }
 
   // Third picks per player
@@ -134,6 +162,16 @@ export default async function ProgresoPage() {
     knockoutTotals[r] = matchCount.get(r) ?? 0;
   }
 
+  // Rondas de Marcador: solo las que ya tienen al menos un partido con AMBOS
+  // equipos reales asignados (si no, sería puro 0/N sin sentido todavía).
+  const marcadorRounds = KNOCKOUT_ROUNDS.filter(
+    (r) => (marcadorMatchCount.get(r) ?? 0) > 0,
+  );
+  const marcadorTotals: Partial<Record<KnockoutRound, number>> = {};
+  for (const r of marcadorRounds) {
+    marcadorTotals[r] = marcadorMatchCount.get(r) ?? 0;
+  }
+
   // Build per-player progress
   type PlayerRow = {
     id: string;
@@ -149,12 +187,18 @@ export default async function ProgresoPage() {
     for (const r of availableRounds) {
       roundPicks[r] = playerRounds?.get(r) ?? 0;
     }
+    const marcadorPicks: Partial<Record<KnockoutRound, number>> = {};
+    const playerMarcador = marcadorByPlayer.get(p.id);
+    for (const r of marcadorRounds) {
+      marcadorPicks[r] = playerMarcador?.get(r) ?? 0;
+    }
     return {
       ...p,
       group_preds: groupByPlayer.get(p.id) ?? 0,
       third_picks: thirdByPlayer.get(p.id) ?? 0,
       early_bracket_picks: earlyByPlayer.get(p.id) ?? 0,
       bracket_picks: roundPicks,
+      marcador_picks: marcadorPicks,
     };
   });
 
@@ -164,6 +208,8 @@ export default async function ProgresoPage() {
     early_bracket_total: 31, // R32(16) + R16(8) + QF(4) + SF(2) + Final(1)
     knockout_rounds: availableRounds,
     knockout_totals: knockoutTotals,
+    marcador_rounds: marcadorRounds,
+    marcador_totals: marcadorTotals,
   };
 
   // Quick summary counts
@@ -183,6 +229,15 @@ export default async function ProgresoPage() {
           Avance por fase. Verde = completo · Amarillo = parcial · Rojo = sin
           empezar.
         </p>
+        {meta.marcador_rounds.length > 0 && (
+          <p className="mt-1 text-xs text-[var(--color-text-subtle)]">
+            <strong>Cuadro</strong> = quién avanza (se llena una vez para todo
+            el torneo). <strong>Marcador</strong> = resultado real de cada
+            partido, ronda por ronda. En 16avos siempre coinciden — tu
+            marcador llena automáticamente esa selección del cuadro. De
+            octavos en adelante son independientes.
+          </p>
+        )}
       </header>
 
       {total > 0 && (

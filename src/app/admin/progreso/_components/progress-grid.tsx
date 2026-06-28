@@ -100,17 +100,43 @@ export function ProgressGrid({
     early_bracket_total,
     knockout_rounds,
     knockout_totals,
+    marcador_rounds,
+    marcador_totals,
   } = meta;
 
+  const fixedCols = 3 + (early_bracket_enabled ? 1 : 0);
   const colSpan =
-    3 +
-    (early_bracket_enabled ? 1 : 0) +
-    knockout_rounds.length +
-    1; // +1 for Estado
+    fixedCols + knockout_rounds.length + marcador_rounds.length + 1; // +1 Estado
+
+  const TH_GROUP =
+    "px-3 py-1 text-center font-semibold text-[10px] uppercase tracking-wider border-b border-[var(--color-border)]";
 
   return (
     <table className="w-full text-sm">
       <thead>
+        {(knockout_rounds.length > 0 || marcador_rounds.length > 0) && (
+          <tr>
+            <th className="sticky left-0 z-10 bg-[var(--color-surface)]" />
+            <th colSpan={fixedCols} />
+            {knockout_rounds.length > 0 && (
+              <th
+                colSpan={knockout_rounds.length}
+                className={cn(TH_GROUP, "text-[var(--color-text-muted)]")}
+              >
+                Cuadro
+              </th>
+            )}
+            {marcador_rounds.length > 0 && (
+              <th
+                colSpan={marcador_rounds.length}
+                className={cn(TH_GROUP, "text-[var(--color-info)]")}
+              >
+                Marcador
+              </th>
+            )}
+            <th />
+          </tr>
+        )}
         <tr className="border-b border-[var(--color-border)]">
           <th className="sticky left-0 z-10 bg-[var(--color-surface)] px-4 py-3 text-left font-medium text-[var(--color-text-muted)] text-xs uppercase tracking-wider whitespace-nowrap">
             Jugador
@@ -142,6 +168,15 @@ export function ProgressGrid({
               <br />
               <span className="font-normal normal-case text-[10px]">
                 de {knockout_totals[r]}
+              </span>
+            </th>
+          ))}
+          {marcador_rounds.map((r) => (
+            <th key={`marcador-${r}`} className={TH}>
+              {LABELS[r]}
+              <br />
+              <span className="font-normal normal-case text-[10px]">
+                de {marcador_totals[r]}
               </span>
             </th>
           ))}
@@ -193,6 +228,14 @@ export function ProgressGrid({
                   <StatusPill
                     count={p.bracket_picks[r] ?? 0}
                     total={knockout_totals[r] ?? 0}
+                  />
+                </td>
+              ))}
+              {marcador_rounds.map((r) => (
+                <td key={`marcador-${r}`} className={TD}>
+                  <StatusPill
+                    count={p.marcador_picks[r] ?? 0}
+                    total={marcador_totals[r] ?? 0}
                   />
                 </td>
               ))}
