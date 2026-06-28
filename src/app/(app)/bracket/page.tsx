@@ -12,7 +12,8 @@ import {
   bestThirds,
   type MatchScore,
 } from "@/lib/standings";
-import { resolveBracket, type PicksMap } from "@/lib/derive-bracket";
+import { resolveBracket, type PicksMap, type MatchTeamsMap } from "@/lib/derive-bracket";
+import { OFFICIAL_KNOCKOUT_MATCHES } from "@/lib/bracket-structure";
 import { BracketPickerWrapper } from "./_components/bracket-picker-wrapper";
 
 export const metadata = { title: "Cuadro de eliminatorias" };
@@ -178,9 +179,15 @@ export default async function BracketPage() {
   const teamMap = new Map(teamsList.map((t) => [t.code, t]));
   const teamNameOf = (code: string) => teamMap.get(code)?.name ?? code;
 
+  const matchTeams: MatchTeamsMap = {};
+  for (const m of r32MatchRows) {
+    matchTeams[m.id] = { home: m.home_team_code, away: m.away_team_code };
+  }
+
   const resolved = resolveBracket(
-    { standings, thirdsOrdered: thirds, picks: picksMap },
+    { standings, thirdsOrdered: thirds, picks: picksMap, matchTeams },
     teamNameOf,
+    OFFICIAL_KNOCKOUT_MATCHES,
   );
 
   return (

@@ -111,6 +111,29 @@ export async function savePredictionAction(input: {
 
   if (error) return { ok: false, error: error.message };
 
+  // El Cuadro muestra 16avos "ya llenado" con el ganador de tu marcador (no
+  // editable a mano), pero los puntos de cuadro (CUADRO_BONUS) solo se pagan
+  // si hay una fila en bracket_picks — sin esto, el bono de "+2 por pasar
+  // 16avos" (documentado en /reglas) nunca se podía ganar. Lo guardamos aquí
+  // para que quede igual de automático que se ve en pantalla.
+  if (match.stage === "r32") {
+    let winner: string | null = null;
+    if (parsed.data.homeScore > parsed.data.awayScore) winner = match.home_team_code;
+    else if (parsed.data.awayScore > parsed.data.homeScore) winner = match.away_team_code;
+    else winner = penaltyWinner;
+
+    const { error: pickError } = await supabase.from("bracket_picks").upsert(
+      {
+        player_id: session.playerId,
+        round: "r32",
+        slot_id: parsed.data.matchId,
+        winner_team_code: winner,
+      } as never,
+      { onConflict: "player_id,round,slot_id" },
+    );
+    if (pickError) return { ok: false, error: pickError.message };
+  }
+
   revalidatePath("/pronosticos/grupos");
   revalidatePath("/pronosticos/eliminatorias/r32");
   revalidatePath("/pronosticos/eliminatorias/r16");

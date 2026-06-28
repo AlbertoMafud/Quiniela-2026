@@ -11,12 +11,15 @@
 // del cuadro y permite al usuario llenar el bracket. Cuando FIFA publique la
 // asignación oficial reemplazamos sin tocar la UI.
 
+import { OFFICIAL_R32_MATCHES } from "./official-knockout-schedule";
+
 export type Round = "r32" | "r16" | "qf" | "sf" | "final";
 
 export type SlotSource =
   | { type: "group_pos"; group: string; position: 1 | 2 } // ej. "1A", "2C"
   | { type: "third"; thirdSlot: number } // T1..T8 (orden en la lista del jugador)
-  | { type: "winner_of"; matchId: string };
+  | { type: "winner_of"; matchId: string }
+  | { type: "match_team"; matchId: string; side: "home" | "away" }; // equipo real ya cargado en `matches`
 
 export interface BracketMatch {
   id: string;
@@ -92,6 +95,46 @@ function nextOf(round: Round, idx: number): string | null {
 
 export const BRACKET_MATCHES: BracketMatch[] = [
   ...R32_MATCHUPS.map((m, i) => ({
+    ...m,
+    round: "r32" as const,
+    next: nextOf("r32", i),
+  })),
+  ...R16_MATCHUPS.map((m, i) => ({
+    ...m,
+    round: "r16" as const,
+    next: nextOf("r16", i),
+  })),
+  ...QF_MATCHUPS.map((m, i) => ({
+    ...m,
+    round: "qf" as const,
+    next: nextOf("qf", i),
+  })),
+  ...SF_MATCHUPS.map((m, i) => ({
+    ...m,
+    round: "sf" as const,
+    next: nextOf("sf", i),
+  })),
+  ...FINAL_MATCHUPS.map((m) => ({
+    ...m,
+    round: "final" as const,
+    next: null,
+  })),
+];
+
+// ------ Cuadro REAL (post-sorteo, 2026-06-28) ------
+// Los 16avos ya no se derivan de standings/terceros: se leen directo del
+// partido real cargado en `matches` (ver official-knockout-schedule.ts). De
+// Octavos en adelante se reusa el mismo pareo adyacente genérico de arriba —
+// es correcto porque OFFICIAL_R32_MATCHES ya viene reordenado para que
+// coincida con el árbol oficial.
+const OFFICIAL_R32_SLOTS = OFFICIAL_R32_MATCHES.map((m) => ({
+  id: m.id,
+  left: { type: "match_team" as const, matchId: m.id, side: "home" as const },
+  right: { type: "match_team" as const, matchId: m.id, side: "away" as const },
+}));
+
+export const OFFICIAL_KNOCKOUT_MATCHES: BracketMatch[] = [
+  ...OFFICIAL_R32_SLOTS.map((m, i) => ({
     ...m,
     round: "r32" as const,
     next: nextOf("r32", i),

@@ -19,11 +19,13 @@ export interface ResolvedTeam {
 }
 
 export type PicksMap = Record<string, string | null>; // matchId -> winner team code
+export type MatchTeamsMap = Record<string, { home: string | null; away: string | null }>;
 
 export interface ResolveContext {
   standings: StandingRow[];
   thirdsOrdered: string[]; // 8 team codes en el orden en que el jugador los seleccionó (T1..T8)
   picks: PicksMap;
+  matchTeams?: MatchTeamsMap; // equipos reales de partidos ya cargados (cuadro post-sorteo)
 }
 
 function findInGroup(
@@ -55,6 +57,13 @@ function resolveSlot(
       label: code ? teamNameOf(code) : `T${src.thirdSlot}`,
     };
   }
+  if (src.type === "match_team") {
+    const code = ctx.matchTeams?.[src.matchId]?.[src.side] ?? null;
+    return {
+      code,
+      label: code ? teamNameOf(code) : "Por confirmar",
+    };
+  }
   // winner_of
   const winnerCode = ctx.picks[src.matchId] ?? null;
   return {
@@ -75,8 +84,9 @@ export interface ResolvedMatch {
 export function resolveBracket(
   ctx: ResolveContext,
   teamNameOf: (code: string) => string,
+  matches: BracketMatch[] = BRACKET_MATCHES,
 ): ResolvedMatch[] {
-  return BRACKET_MATCHES.map((m: BracketMatch) => ({
+  return matches.map((m: BracketMatch) => ({
     id: m.id,
     round: m.round,
     left: resolveSlot(m.left, ctx, teamNameOf),
