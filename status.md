@@ -1,6 +1,6 @@
 # Quiniela Familia 2026 — Status
 
-> Última actualización: **2026-06-10** (features: bolsa acumulada + cierres por etapa, en prod; previo: cambiar nombre self-service)
+> Última actualización: **2026-06-28** (UI Cuadro vs Marcador en admin/progreso + ranking, en prod; scoring verificado correcto; previo: cuadro real de 16avos cargado a prod)
 
 ## Qué es esto
 
@@ -31,10 +31,73 @@ Familia. Auth por **PIN** (sin email, sin password). Admins actuales: **Alberto*
 
 - **Idioma**: 100% español, sin pochismos. "Cierre" (no "deadline"), "Cuadro" (no "bracket" en UI; en código sí), "16avos / octavos / cuartos / semifinales / final" (no R32, R16…), "Selecciones" (no "picks") en UI.
 - **Empate en eliminatoria**: el selector dice "¿Quién pasa?" (no "por penales") — puede ser tiempos extra.
-- **Scoring acumulado del cuadro desde el inicio**: si tu equipo llega a 16avos 1 pt, a octavos suma 2 más (total 3), a cuartos +3 (total 6), a semis +4 (10), a final +5 (15 max).
+- **Scoring acumulado del cuadro**: por una selección que llevas hasta el final, sumando Clasificados (+1 al pasar a 16avos) + Cuadro (`CUADRO_BONUS` 2/3/4/5/6 por avanzar a la siguiente ronda): 16avos **1**, octavos **3**, cuartos **6**, semis **10**, final **15**, campeón **21**. Es decir el esquema 1/3/6/10/15 hasta la final, +6 al campeón. **OJO**: el bono del cuadro aislado es 2/5/9/14/20 — NO confundir con el acumulado real (Clasificados aporta el primer +1). Esto es adicional al marcador (3 exacto / 1 ganador / 0). Confirmado y verificado correcto 2026-06-28 (no es bug).
 - **Admin siempre ve todo** (incluyendo pronósticos de otros antes del cierre, para poder auditar).
 - **Privacidad de pronósticos**: cada jugador no-admin SOLO ve los suyos hasta que pase el cierre (`deadline_at`) de esa etapa. Después se revelan todos. Aplica a `/ranking`.
 - **NO tocar `quiniela-original/` ni `quiniela-2026/`** (son la app real de Adriana en Firebase prod).
+
+## Cambios recientes (sesión 2026-06-28, tarde) — UI Cuadro vs Marcador + verificación de scoring
+
+**feat(admin+ranking): separar Cuadro de Marcador.** Commit `ded45e2`, pusheado a `main` → Vercel. Solo código (3 archivos), cero migraciones, cero escrituras a BD, cero cambios de scoring. **Verificado primero en local** (Supabase local, .env.local apuntado a local temporalmente y restaurado a prod al terminar) con typecheck/lint/build limpios + smoke en navegador (desktop y móvil).
+
+**Problema que resolvía:** dos conceptos independientes estaban mezclados/ocultos en la UI:
+- **Cuadro** (`bracket_picks`): quién avanza, se llena una vez para todo el torneo.
+- **Marcador** (`predictions`): resultado real de cada partido, ronda por ronda.
+
+**Cambios:**
+- `src/app/admin/progreso/page.tsx` + `_components/progress-grid.tsx`: nuevo grupo de columnas **"Marcador"** (conteo de `predictions` por ronda KO) junto al grupo **"Cuadro"** ya existente, con encabezado de 2 pisos + nota explicativa. Las columnas de Marcador de una ronda solo aparecen cuando esa ronda ya tiene partidos con AMBOS equipos reales asignados (mismo patrón de `availableRounds`). En 16avos, Cuadro y Marcador coinciden por diseño (guardar marcador de 16avos auto-llena el pick de cuadro). Reusa datos ya leídos (solo agregó `home_team_code`/`away_team_code` al SELECT de `matches`). El badge ESTADO NO cambió (sigue siendo el setup inicial: grupos+terceros+cuadro).
+- `src/app/(app)/ranking/page.tsx`: `cuadro_points` ahora en su propia columna **"Cuadro"** (ícono `GitBranch`) en vez de sumarse en silencio dentro de "Eliminatorias". Beneficio: las columnas visibles (Grupos+Clasificados+Eliminatorias+Cuadro) ahora suman exacto al Total.
+
+**Verificación de scoring (sin cambios de código):** Alberto pidió confirmar el modelo de puntos.
+- **Clasificados = +1 por selección que pasó a 16avos** (de tus 32: 1°+2° de tus standings + 8 terceros). Confirmado.
+- **Cuadro acumulado YA es 1/3/6/10/15** (16avos→final), +6 al campeón (21). Mi nota previa que decía "bug" estaba MAL — ver sección "Decisiones de producto" arriba y memoria `project_scoring_model`. **Campeón=21 confirmado por Alberto.** No se tocó nada.
+
+**⏳ Pendiente de Alberto (no requiere código):**
+- [ ] `/admin/deadlines` en prod — revisar cierres de 16avos (`r32_scores`/`r32_picks`) antes del partido en curso. El freno por `kickoff_at` ya bloquea cada partido individual al patear; dejar las etapas en "Auto" (no "Forzar abierto", que desactiva ese freno).
+
+**Rollback:** `vercel rollback` (código aditivo, sin datos tocados).
+
+## Cambios recientes (sesión 2026-06-28) — fin de fase de grupos, cuadro real
+
+**feat(eliminatorias): cuadro oficial de 16avos cargado a prod.** La fase de grupos terminó; se cargó el cuadro real confirmado (fuente: Excel `eliminatorias_mundial_2026_cdmx.xlsx`, hojas "Cruces definidos"/"Bracket completo", basado en FIFA/Reuters/SI). Commit `4299f1a`, pusheado a `main` → Vercel. **Todo verificado primero en local antes de tocar prod.**
+
+**Causa raíz del cuadro "mal":** usaba emparejamiento placeholder mecánico (1A vs T1, etc.) y fechas sintéticas (`createKnockoutMatchesAction` con base `2026-06-30` + offsets). Nunca iba a coincidir con el sorteo real.
+
+**Código (6 archivos):**
+- **Nuevo** `src/lib/official-knockout-schedule.ts`: 16 cruces de 16avos con equipos, kickoff CDMX→UTC, sede y ciudad reales + kickoff oficial de octavos a final. **OJO:** usa los codes placeholder reales de `teams` (`EA1..EL4`) — las migraciones 003/004 NUNCA renombraron los codes a FIFA (GER/RSA...), solo cambiaron `name`/`flag_emoji`. Cualquier dato nuevo de KO debe usar `EA1..EL4`, no códigos de país.
+- **Nuevo** `scripts/seed-knockout-matches.ts`: carga los 31 partidos KO (dry-run por default, `--apply` para escribir). Lee `.env.local`.
+- `src/lib/bracket-structure.ts`: nueva variante `SlotSource` `match_team` (lee equipo real del partido cargado) + export `OFFICIAL_KNOCKOUT_MATCHES`. Los 16 cruces vienen **reordenados** (r32_m1..r32_m16) para que el pareo adyacente genérico (`r32_m(2k-1)` vs `r32_m(2k)`) reproduzca el árbol oficial. **No** toca `BRACKET_MATCHES` (lo usa cuadro-desde-inicio, off).
+- `src/lib/derive-bracket.ts`: resuelve `match_team` desde `matchTeams`; `resolveBracket` ahora acepta lista de matches custom.
+- `src/app/(app)/bracket/page.tsx`: usa `OFFICIAL_KNOCKOUT_MATCHES` + equipos reales de la tabla `matches`.
+- **fix(scoring):** `src/app/(app)/pronosticos/grupos/_actions.ts` — al guardar marcador de 16avos (`stage='r32'`) también hace upsert del pick en `bracket_picks`. **Sin esto el bono "+2 por pasar 16avos" (documentado en /reglas) NUNCA se podía ganar** — el cuadro lo mostraba derivado del marcador pero no lo persistía, y `computeTotals` paga `CUADRO_BONUS` solo si hay fila en `bracket_picks`. Octavos+ ya funcionaban (se eligen a mano).
+
+**Operación a prod (2026-06-28, con red de seguridad):**
+- Prod YA tenía 31 partidos KO basura (de la herramienta vieja) con equipos duplicados (Sudáfrica en r32_m1 Y r32_m13) y fechas sintéticas. El seed `--apply` los **sobrescribió** (upsert por id) con los oficiales. Resultado verificado: 16 cruces, 32 equipos sin duplicados, fechas/sedes reales.
+- **8 pronósticos de Gaby sobre los 16avos placeholder → borrados** (estaban contra cruces equivocados; se reasignarían mal). Borrado quirúrgico con guardas (abortaba si tocaba grupos o si conteo ≠ 8). **Grupos verificados intactos: 1800 pronósticos antes y después.** Avisarle a Gaby que re-meta sus 16avos.
+- **Snapshots pre-cambio** (en `backups/`, gitignored): `prod-KO-matches-before-2026-06-28T07-57.json` (31 partidos) y `prod-KO-predictions-before-2026-06-28T07-57.json` (8 pronósticos). Restauran exactamente lo tocado.
+- Puntos NO se tocan: en esta app los puntos se calculan al vuelo (`computeTotals`), no hay tabla de puntos asignados. Y los 16avos aún sin marcador real → 0 pts hoy.
+
+**Decisiones de esta sesión:**
+- Partido por 3er lugar (53452539, 18-jul): **fuera de alcance** — el esquema no soporta esa etapa (constraint `stage`) y no estaba en el pedido.
+- `.env.local` sigue apuntando a **prod** (nunca se cambió a local; para probar en local usé `.env.development.local` temporal, ya borrado). El pendiente histórico de "apuntar .env.local a local" sigue abierto pero ya no bloquea.
+
+**⏳ Pendiente de Alberto (no requiere código):**
+- [ ] **Cierre de 16avos (`r32_scores`/`r32_picks`) en `/admin/deadlines`** — Sudáfrica-Canadá patea 28-jun 13:00 CDMX. El sistema solo tiene cierre por etapa, no por partido; ajustar para que nadie pronostique partidos ya jugados.
+- [ ] Confirmar deploy Ready en Vercel + probar `/bracket` y `/pronosticos/eliminatorias/r32` en prod con PIN real.
+- [ ] Avisar a Gaby que vuelva a meter sus 16avos (cruces reales).
+- [ ] Conforme avancen las rondas: fijar equipos de octavos+ a mano en `/admin/resultados` (selector ya existe, decisión previa).
+
+**Rollback:** código `vercel rollback`; datos KO desde los 2 JSON de `backups/`.
+
+## Cambios recientes (sesión 2026-06-11) — día de arranque
+
+**Respaldo pre-silbatazo de producción.** Antes del primer partido se tomó foto congelada de la BD de prod vía `scripts/backup-db.ps1` (pg_dump, schema `public`, pooling OFF port 5432).
+
+- Archivo: `backups/quiniela-2026-06-11_1035.sql` (259 KB, local, **no** en git por privacidad — trae PII de la familia).
+- Verificado íntegro (cierra limpio, con datos): **25 players · 1,800 predictions · 184 third_picks · 72 matches**.
+- Capa adicional: backup diario automático de Supabase Pro sigue activo. (Pro estándar no tiene botón "Backup now"; on-demand requeriría add-on PITR — no se contrató.)
+- **Protocolo del día**: re-correr el script ANTES de cargar resultados en el admin a media jornada → punto de restauración fresco (2 seg).
+- **Pendiente post-Mundial**: rotar password de BD (se expuso en chat al generar el backup) — Supabase → Database → Reset database password.
 
 ## Cambios recientes (sesión 2026-06-10)
 
