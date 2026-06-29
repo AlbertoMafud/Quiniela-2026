@@ -9,8 +9,10 @@ import { saveBracketPickAction } from "../_actions";
 
 export function BracketPickerWrapper({
   matches,
+  lockedMatchIds,
 }: {
   matches: ResolvedMatch[];
+  lockedMatchIds?: readonly string[];
 }) {
   async function save(input: SavePickInput) {
     return saveBracketPickAction(input);
@@ -21,6 +23,7 @@ export function BracketPickerWrapper({
       locked={false}
       saveAction={save}
       lockedRounds={["r32"]}
+      lockedMatchIds={lockedMatchIds}
       description="Los 16avos se llenan solos con los ganadores de tus pronósticos (en azul). Octavos en adelante los eliges tú."
     />
   );

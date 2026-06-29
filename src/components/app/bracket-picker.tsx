@@ -33,6 +33,8 @@ interface BracketPickerProps {
   description?: string;
   /** Rondas que no permiten edición (por ej. R32 derivado de pronósticos en /bracket). */
   lockedRounds?: Round[];
+  /** Matches puntuales bloqueados para este jugador (ver lib/cuadro-overrides.ts). */
+  lockedMatchIds?: readonly string[];
 }
 
 const ROUNDS: Round[] = ["r32", "r16", "qf", "sf", "final"];
@@ -58,8 +60,10 @@ export function BracketPicker({
   saveAction,
   description,
   lockedRounds = [],
+  lockedMatchIds = [],
 }: BracketPickerProps) {
   const lockedSet = new Set<Round>(lockedRounds);
+  const lockedMatchSet = new Set<string>(lockedMatchIds);
   const [picks, setPicks] = useState<Record<string, string | null>>(() => {
     const init: Record<string, string | null> = {};
     for (const m of matches) init[m.id] = m.pick;
@@ -97,7 +101,7 @@ export function BracketPicker({
   }, [matches, picks]);
 
   function handlePick(matchId: string, round: Round, teamCode: string | null) {
-    if (locked || lockedSet.has(round)) return;
+    if (locked || lockedSet.has(round) || lockedMatchSet.has(matchId)) return;
     setErrorByMatch((prev) => {
       const next = { ...prev };
       delete next[matchId];
@@ -185,8 +189,9 @@ export function BracketPicker({
                           pick={picks[m.id]}
                           pending={pendingMatchId === m.id}
                           error={errorByMatch[m.id]}
-                          locked={locked || lockedSet.has(m.round)}
-                          lockedByPrediction={lockedSet.has(m.round)}
+                          locked={locked || lockedSet.has(m.round) || lockedMatchSet.has(m.id)}
+                          lockedByPrediction={lockedSet.has(m.round) && !lockedMatchSet.has(m.id)}
+                          frozen={lockedMatchSet.has(m.id)}
                           onPick={(code) => handlePick(m.id, m.round, code)}
                         />
                       </div>
@@ -249,6 +254,7 @@ function MatchCell({
   error,
   locked,
   lockedByPrediction = false,
+  frozen = false,
   onPick,
 }: {
   match: ResolvedMatch;
@@ -257,6 +263,7 @@ function MatchCell({
   error?: string;
   locked: boolean;
   lockedByPrediction?: boolean;
+  frozen?: boolean;
   onPick: (code: string | null) => void;
 }) {
   const leftPicked = pick === match.left.code && pick !== null;
@@ -269,11 +276,19 @@ function MatchCell({
       <div
         className={cn(
           "rounded-[var(--radius-sm)] border bg-[var(--color-surface)] overflow-hidden text-xs sm:text-[13px]",
-          lockedByPrediction
-            ? "border-[var(--color-info)]/40 bg-[var(--color-info)]/4"
-            : "border-[var(--color-border)]",
+          frozen
+            ? "border-[var(--color-danger)]/40 bg-[var(--color-danger)]/4"
+            : lockedByPrediction
+              ? "border-[var(--color-info)]/40 bg-[var(--color-info)]/4"
+              : "border-[var(--color-border)]",
         )}
-        title={lockedByPrediction ? "Definido por tu pronóstico de marcador" : undefined}
+        title={
+          frozen
+            ? "Resultado real, no fue tu pronóstico — no suma puntos de cuadro aquí"
+            : lockedByPrediction
+              ? "Definido por tu pronóstico de marcador"
+              : undefined
+        }
       >
         <TeamSlot
           label={match.left.label}
@@ -282,6 +297,7 @@ function MatchCell({
           onClick={() => onPick(leftPicked ? null : match.left.code ?? null)}
           pending={pending && leftPicked}
           lockedByPrediction={lockedByPrediction}
+          frozen={frozen}
         />
         <div className="border-t border-[var(--color-border)]" />
         <TeamSlot
@@ -291,6 +307,7 @@ function MatchCell({
           onClick={() => onPick(rightPicked ? null : match.right.code ?? null)}
           pending={pending && rightPicked}
           lockedByPrediction={lockedByPrediction}
+          frozen={frozen}
         />
       </div>
       {error && (
@@ -309,6 +326,7 @@ function TeamSlot({
   onClick,
   pending,
   lockedByPrediction = false,
+  frozen = false,
 }: {
   label: string;
   selected: boolean;
@@ -316,6 +334,7 @@ function TeamSlot({
   onClick: () => void;
   pending: boolean;
   lockedByPrediction?: boolean;
+  frozen?: boolean;
 }) {
   return (
     <button
@@ -327,12 +346,16 @@ function TeamSlot({
         "transition-colors text-left",
         "disabled:cursor-not-allowed",
         selected
-          ? lockedByPrediction
-            ? "bg-[var(--color-info)] text-[var(--color-info-fg)]"
-            : "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
-          : lockedByPrediction
+          ? frozen
+            ? "bg-[var(--color-danger)] text-white"
+            : lockedByPrediction
+              ? "bg-[var(--color-info)] text-[var(--color-info-fg)]"
+              : "bg-[var(--color-primary)] text-[var(--color-primary-fg)]"
+          : frozen
             ? "bg-transparent text-[var(--color-text-muted)]"
-            : "bg-transparent text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-40",
+            : lockedByPrediction
+              ? "bg-transparent text-[var(--color-text-muted)]"
+              : "bg-transparent text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-40",
       )}
     >
       <span className="truncate font-medium">{label}</span>

@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { checkStageEditable } from "@/lib/gates-server";
+import {
+  CUADRO_FROZEN_BRANCH_MATCH_IDS,
+  isCuadroFrozenForPlayer,
+} from "@/lib/cuadro-overrides";
 
 const schema = z.object({
   round: z.enum(["r32", "r16", "qf", "sf", "final"]),
@@ -24,6 +28,15 @@ export async function saveBracketPickAction(input: {
 
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
+
+  if (
+    isCuadroFrozenForPlayer(session.playerId) &&
+    (CUADRO_FROZEN_BRANCH_MATCH_IDS as readonly string[]).includes(
+      parsed.data.slotId,
+    )
+  ) {
+    return { ok: false, error: "Esta rama del cuadro queda fija al resultado real." };
+  }
 
   const supabase = adminClient();
 
