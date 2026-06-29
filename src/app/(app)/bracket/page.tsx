@@ -36,11 +36,14 @@ interface GroupMatchRow {
   home_score: number | null;
   away_score: number | null;
 }
-interface ElimMatchRow {
+interface KoMatchRow {
   id: string;
   stage: string;
   home_team_code: string | null;
   away_team_code: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  penalty_winner: string | null;
 }
 interface PickRow {
   round: string;
@@ -52,14 +55,6 @@ interface ElimPredRow {
   home_score: number;
   away_score: number;
   penalty_winner_code: string | null;
-}
-interface RealElimMatchRow {
-  id: string;
-  home_team_code: string | null;
-  away_team_code: string | null;
-  home_score: number | null;
-  away_score: number | null;
-  penalty_winner: string | null;
 }
 
 export default async function BracketPage() {
@@ -73,10 +68,9 @@ export default async function BracketPage() {
   const [
     { data: teams },
     { data: groupMatches },
-    { data: r32Matches },
+    { data: koMatches },
     { data: r32Predictions },
     { data: picks },
-    { data: frozenBranchMatches },
   ] = await Promise.all([
     supabase.from("teams").select("code, name, group_letter, flag_emoji"),
     supabase
@@ -87,8 +81,10 @@ export default async function BracketPage() {
       .eq("stage", "group"),
     supabase
       .from("matches")
-      .select("id, stage, home_team_code, away_team_code")
-      .eq("stage", "r32"),
+      .select(
+        "id, stage, home_team_code, away_team_code, home_score, away_score, penalty_winner",
+      )
+      .neq("stage", "group"),
     supabase
       .from("predictions")
       .select("match_id, home_score, away_score, penalty_winner_code")
@@ -97,14 +93,6 @@ export default async function BracketPage() {
       .from("bracket_picks")
       .select("round, slot_id, winner_team_code")
       .eq("player_id", session.playerId),
-    isFrozenPlayer
-      ? supabase
-          .from("matches")
-          .select(
-            "id, home_team_code, away_team_code, home_score, away_score, penalty_winner",
-          )
-          .in("id", CUADRO_FROZEN_BRANCH_MATCH_IDS)
-      : Promise.resolve({ data: null }),
   ]);
 
   const teamsList = (teams ?? []) as TeamRow[];
@@ -179,8 +167,22 @@ export default async function BracketPage() {
     }
   }
 
+  // Ganador real de cada partido KO ya jugado (empate a 90' → penalty_winner).
+  // Misma lógica que ranking-calculator. Se usa para: (a) marcar acierto/fallo
+  // en el cuadro y (b) resolver la rama congelada de los 3 jugadores.
+  const koMatchRows = (koMatches ?? []) as KoMatchRow[];
+  const realAdvancers: Record<string, string> = {};
+  for (const m of koMatchRows) {
+    if (m.home_score === null || m.away_score === null) continue;
+    let adv: string | null = null;
+    if (m.home_score > m.away_score) adv = m.home_team_code;
+    else if (m.away_score > m.home_score) adv = m.away_team_code;
+    else adv = m.penalty_winner;
+    if (adv) realAdvancers[m.id] = adv;
+  }
+
   // R32 derivado de pronósticos
-  const r32MatchRows = (r32Matches ?? []) as ElimMatchRow[];
+  const r32MatchRows = koMatchRows.filter((m) => m.stage === "r32");
   const r32PredMap = new Map(
     ((r32Predictions ?? []) as ElimPredRow[]).map((p) => [p.match_id, p]),
   );
@@ -201,22 +203,13 @@ export default async function BracketPage() {
 
   // Rama congelada (ver lib/cuadro-overrides.ts): para los 3 jugadores que no
   // llenaron a tiempo el marcador de r32_m3, esos slots se resuelven con el
-  // resultado REAL ya cargado en `matches` (no con su pick) y quedan
-  // bloqueados en el picker (lockedMatchIds más abajo) — nunca generan fila
-  // en bracket_picks, así que el bono de Cuadro de esas 2 rondas da 0.
+  // resultado REAL (no con su pick) y quedan bloqueados en el picker
+  // (lockedMatchIds más abajo) — nunca generan fila en bracket_picks, así que
+  // el bono de Cuadro de esas 2 rondas da 0.
   if (isFrozenPlayer) {
-    const realAdvancerByMatch = new Map<string, string>();
-    for (const m of (frozenBranchMatches ?? []) as RealElimMatchRow[]) {
-      if (m.home_score === null || m.away_score === null) continue;
-      let adv: string | null = null;
-      if (m.home_score > m.away_score) adv = m.home_team_code;
-      else if (m.away_score > m.home_score) adv = m.away_team_code;
-      else adv = m.penalty_winner;
-      if (adv) realAdvancerByMatch.set(m.id, adv);
-    }
     for (const matchId of CUADRO_FROZEN_BRANCH_MATCH_IDS) {
-      if (!picksMap[matchId] && realAdvancerByMatch.has(matchId)) {
-        picksMap[matchId] = realAdvancerByMatch.get(matchId) ?? null;
+      if (!picksMap[matchId] && realAdvancers[matchId]) {
+        picksMap[matchId] = realAdvancers[matchId];
       }
     }
   }
@@ -249,6 +242,7 @@ export default async function BracketPage() {
 
       <BracketPickerWrapper
         matches={resolved}
+        realAdvancers={realAdvancers}
         lockedMatchIds={isFrozenPlayer ? CUADRO_FROZEN_BRANCH_MATCH_IDS : undefined}
       />
     </div>

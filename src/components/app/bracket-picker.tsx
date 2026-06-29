@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, Loader2, Trophy } from "lucide-react";
+import { Check, Loader2, Trophy, X } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -35,6 +35,8 @@ interface BracketPickerProps {
   lockedRounds?: Round[];
   /** Matches puntuales bloqueados para este jugador (ver lib/cuadro-overrides.ts). */
   lockedMatchIds?: readonly string[];
+  /** Ganador real por matchId (KO ya jugado). Marca acierto/fallo en cada pick. */
+  realAdvancers?: Record<string, string>;
 }
 
 const ROUNDS: Round[] = ["r32", "r16", "qf", "sf", "final"];
@@ -61,6 +63,7 @@ export function BracketPicker({
   description,
   lockedRounds = [],
   lockedMatchIds = [],
+  realAdvancers = {},
 }: BracketPickerProps) {
   const lockedSet = new Set<Round>(lockedRounds);
   const lockedMatchSet = new Set<string>(lockedMatchIds);
@@ -192,6 +195,7 @@ export function BracketPicker({
                           locked={locked || lockedSet.has(m.round) || lockedMatchSet.has(m.id)}
                           lockedByPrediction={lockedSet.has(m.round) && !lockedMatchSet.has(m.id)}
                           frozen={lockedMatchSet.has(m.id)}
+                          realWinner={realAdvancers[m.id] ?? null}
                           onPick={(code) => handlePick(m.id, m.round, code)}
                         />
                       </div>
@@ -247,6 +251,8 @@ function ProgressSummary({
   );
 }
 
+type SlotResult = "correct" | "wrong" | null;
+
 function MatchCell({
   match,
   pick,
@@ -255,6 +261,7 @@ function MatchCell({
   locked,
   lockedByPrediction = false,
   frozen = false,
+  realWinner = null,
   onPick,
 }: {
   match: ResolvedMatch;
@@ -264,12 +271,27 @@ function MatchCell({
   locked: boolean;
   lockedByPrediction?: boolean;
   frozen?: boolean;
+  realWinner?: string | null;
   onPick: (code: string | null) => void;
 }) {
   const leftPicked = pick === match.left.code && pick !== null;
   const rightPicked = pick === match.right.code && pick !== null;
   const leftDisabled = !match.left.code || locked;
   const rightDisabled = !match.right.code || locked;
+
+  // Acierto/fallo: solo cuando el partido real ya se jugó (realWinner) y este
+  // jugador tiene un pick. En la rama congelada no se marca (es forzado y da 0).
+  const resolved = realWinner !== null && !frozen && pick != null;
+  const leftResult: SlotResult = resolved && leftPicked
+    ? pick === realWinner
+      ? "correct"
+      : "wrong"
+    : null;
+  const rightResult: SlotResult = resolved && rightPicked
+    ? pick === realWinner
+      ? "correct"
+      : "wrong"
+    : null;
 
   return (
     <div className="w-full">
@@ -298,6 +320,7 @@ function MatchCell({
           pending={pending && leftPicked}
           lockedByPrediction={lockedByPrediction}
           frozen={frozen}
+          result={leftResult}
         />
         <div className="border-t border-[var(--color-border)]" />
         <TeamSlot
@@ -308,6 +331,7 @@ function MatchCell({
           pending={pending && rightPicked}
           lockedByPrediction={lockedByPrediction}
           frozen={frozen}
+          result={rightResult}
         />
       </div>
       {error && (
@@ -327,6 +351,7 @@ function TeamSlot({
   pending,
   lockedByPrediction = false,
   frozen = false,
+  result = null,
 }: {
   label: string;
   selected: boolean;
@@ -335,12 +360,20 @@ function TeamSlot({
   pending: boolean;
   lockedByPrediction?: boolean;
   frozen?: boolean;
+  result?: SlotResult;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={
+        result === "correct"
+          ? "Acertaste: este equipo sí avanzó"
+          : result === "wrong"
+            ? "Fallaste: este equipo no avanzó"
+            : undefined
+      }
       className={cn(
         "w-full px-2 sm:px-3 py-2 sm:py-2.5 flex items-center justify-between gap-2",
         "transition-colors text-left",
@@ -362,6 +395,14 @@ function TeamSlot({
       <span className="shrink-0 w-4 flex justify-end">
         {pending ? (
           <Loader2 className="h-3 w-3 animate-spin opacity-70" />
+        ) : result === "correct" ? (
+          <span className="inline-flex items-center justify-center rounded-full bg-[var(--color-primary)] ring-1 ring-white/70 p-[1px]">
+            <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+          </span>
+        ) : result === "wrong" ? (
+          <span className="inline-flex items-center justify-center rounded-full bg-[var(--color-danger)] ring-1 ring-white/70 p-[1px]">
+            <X className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+          </span>
         ) : selected ? (
           <Check className="h-3 w-3" />
         ) : null}
