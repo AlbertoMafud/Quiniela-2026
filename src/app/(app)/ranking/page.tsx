@@ -63,6 +63,8 @@ interface TeamDB { code: string; name: string; group_letter: string; flag_emoji:
 interface ThirdDB { player_id: string; team_code: string }
 interface BracketDB { player_id: string; slot_id: string; round: Round; winner_team_code: string | null }
 
+const ORIGIN_ORDER: Record<ClasificadoRow["origin"], number> = { "1": 0, "2": 1, tercero: 2 };
+
 const PODIUM = [
   { Icon: Trophy, color: "var(--color-gold)" },
   { Icon: Medal, color: "var(--color-text-subtle)" },
@@ -240,7 +242,6 @@ export default async function RankingPage({
     teamDataForCalc,
   );
 
-  const ORIGIN_ORDER: Record<ClasificadoRow["origin"], number> = { "1": 0, "2": 1, tercero: 2 };
   const clasificadoRows: ClasificadoRow[] = playerDetail.clasificados
     .map((c) => {
       const t = teamsByCode.get(c.team_code);
@@ -551,7 +552,7 @@ function SummaryTable({
                     </td>
                     <td className="py-3 px-2">
                       <Link
-                        href={`/ranking?jugador=${row.player_id}`}
+                        href={`/ranking?jugador=${encodeURIComponent(row.player_id)}`}
                         className="inline-flex items-center gap-2 hover:underline"
                       >
                         {podium ? (
