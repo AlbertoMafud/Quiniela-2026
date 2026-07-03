@@ -23,7 +23,9 @@ export function PlayerSelect({ players, selectedId }: Props) {
       <select
         id="player-select"
         value={selectedId}
-        onChange={(e) => router.push(`/ranking?jugador=${e.target.value}`)}
+        onChange={(e) =>
+          router.push(`/ranking?jugador=${encodeURIComponent(e.target.value)}`, { scroll: false })
+        }
         className="h-9 rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-sm font-medium text-[var(--color-text)] focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] focus-visible:outline-offset-2"
       >
         {players.map((p) => (
