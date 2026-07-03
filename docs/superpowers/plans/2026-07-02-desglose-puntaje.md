@@ -631,8 +631,8 @@ export function CuadroBreakdown({ rowsByRound, defaultOpenRound = null }: Props)
         Clasificados te da el primer punto (+1) cuando ese equipo pasa 16avos.
         Cada ronda de Cuadro suma el bono de la ronda <strong>a la que avanzó</strong>:
         16avos +2, octavos +3, cuartos +4, semis +5, campeón +6 — por eso un
-        equipo que llega a semis te da 1+2+3+4+5 = <strong>15 puntos</strong> en
-        total, no solo el bono de semis.
+        equipo que llega a la final (ganó semis) te da 1+2+3+4+5 = <strong>15
+        puntos</strong> en total, no solo el bono de semis.
       </section>
 
       {ROUNDS_ORDER.map((round) => (

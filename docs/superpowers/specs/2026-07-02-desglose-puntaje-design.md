@@ -140,8 +140,10 @@ Clasificados, Cuadro.
   arriba de la sección (no por ronda): *"Clasificados te da el primer punto
   (+1) cuando ese equipo pasa 16avos. Cada ronda de Cuadro suma el bono de la
   ronda A LA QUE AVANZÓ: 16avos +2, octavos +3, cuartos +4, semis +5, campeón
-  +6 — por eso un equipo que llega a semis te da 1+2+3+4+5 = 15 puntos en
-  total, no solo el bono de semis."*
+  +6 — por eso un equipo que llega a LA FINAL (ganó semis) te da 1+2+3+4+5 =
+  15 puntos en total, no solo el bono de semis."* (Ojo: "llega a semis" son
+  10 puntos —1+2+3+4—, no 15; el bono de semis se gana al GANAR la semifinal
+  y avanzar a la final, ver [[project_scoring_model]].)
 
 ## Fuera de alcance
 
