@@ -60,22 +60,23 @@ export interface PlayerTotals {
   group_matches_played: number;
 }
 
-export function computeTotals(
-  players: PlayerData[],
+/**
+ * Reconstruye "qué pasó de verdad": si la fase de grupos real ya terminó, el
+ * set de los 32 equipos que clasificaron (1°/2° de cada grupo real + 8
+ * mejores terceros reales), y el avanzador real de cada partido de
+ * eliminatoria (empate a 90' → penalty_winner). Usada tanto por
+ * `computeTotals` (agregados) como por `computePlayerDetail` (desglose) para
+ * que nunca diverjan.
+ */
+export function computeReality(
   matches: MatchData[],
-  predictions: PredictionData[],
-  thirdPicks: ThirdPickData[],
-  bracketPicks: BracketPickData[],
   teams: TeamInfo[],
-  params: ScoringParams,
-): PlayerTotals[] {
-  const matchParams = {
-    exact_score_pts: params.exact_score_pts,
-    correct_winner_pts: params.correct_winner_pts,
-  };
-  const matchesById = new Map(matches.map((m) => [m.id, m]));
-
-  // --- Realidad: clasificados reales (32) y avanzador real por partido KO ---
+): {
+  groupStageComplete: boolean;
+  groupMatchesPlayed: number;
+  realQualifiers: Set<string>;
+  advancerByMatch: Map<string, string>;
+} {
   const groupMatches = matches.filter((m) => m.stage === "group");
   const completedGroup: MatchScore[] = [];
   for (const m of groupMatches) {
@@ -105,7 +106,6 @@ export function computeTotals(
     for (const t of bestThirds(realStandings)) realQualifiers.add(t.team_code);
   }
 
-  // Avanzador real de cada partido de eliminatoria (empate a 90' → penalty_winner).
   const advancerByMatch = new Map<string, string>();
   for (const m of matches) {
     if (m.stage === "group") continue;
@@ -116,6 +116,32 @@ export function computeTotals(
     else adv = m.penalty_winner;
     if (adv) advancerByMatch.set(m.id, adv);
   }
+
+  return {
+    groupStageComplete,
+    groupMatchesPlayed: completedGroup.length,
+    realQualifiers,
+    advancerByMatch,
+  };
+}
+
+export function computeTotals(
+  players: PlayerData[],
+  matches: MatchData[],
+  predictions: PredictionData[],
+  thirdPicks: ThirdPickData[],
+  bracketPicks: BracketPickData[],
+  teams: TeamInfo[],
+  params: ScoringParams,
+): PlayerTotals[] {
+  const matchParams = {
+    exact_score_pts: params.exact_score_pts,
+    correct_winner_pts: params.correct_winner_pts,
+  };
+  const matchesById = new Map(matches.map((m) => [m.id, m]));
+
+  const { groupStageComplete, groupMatchesPlayed, realQualifiers, advancerByMatch } =
+    computeReality(matches, teams);
 
   // --- Índices por jugador ---
   const predsByPlayer = new Map<string, PredictionData[]>();
@@ -213,8 +239,114 @@ export function computeTotals(
         cuadro_points,
         total,
         group_predictions_made,
-        group_matches_played: completedGroup.length,
+        group_matches_played: groupMatchesPlayed,
       };
     })
     .sort((a, b) => b.total - a.total);
+}
+
+export interface ClasificadoPickDetail {
+  team_code: string;
+  group_letter: string;
+  origin: "1" | "2" | "tercero"; // 1°/2° de TU tabla predicha, o tercero elegido
+  qualified: boolean; // ¿pasó de verdad a 16avos?
+  points: 0 | 1;
+}
+
+export interface CuadroPickDetail {
+  round: Round;
+  slot_id: string;
+  home_team_code: string | null;
+  away_team_code: string | null;
+  picked_team_code: string;
+  status: "hit" | "miss" | "pending"; // pending = el partido de ese slot no se ha jugado
+  points: number;
+}
+
+export interface PlayerDetail {
+  clasificados_ready: boolean; // = groupStageComplete
+  clasificados: ClasificadoPickDetail[];
+  cuadro: CuadroPickDetail[];
+}
+
+const ROUND_ORDER: Record<Round, number> = { r32: 0, r16: 1, qf: 2, sf: 3, final: 4 };
+
+/**
+ * Desglose de puntaje de UN jugador: cada pick de Clasificados y de Cuadro
+ * con su resultado individual. `sum(clasificados[].points)` y
+ * `sum(cuadro[].points)` deben ser siempre iguales a `clasificados_points` y
+ * `cuadro_points` de `computeTotals` para ese mismo jugador (misma fuente de
+ * verdad vía `computeReality`).
+ */
+export function computePlayerDetail(
+  playerId: string,
+  matches: MatchData[],
+  predictions: PredictionData[],
+  thirdPicks: ThirdPickData[],
+  bracketPicks: BracketPickData[],
+  teams: TeamInfo[],
+): PlayerDetail {
+  const matchesById = new Map(matches.map((m) => [m.id, m]));
+  const { groupStageComplete, realQualifiers, advancerByMatch } = computeReality(matches, teams);
+
+  const clasificados: ClasificadoPickDetail[] = [];
+  if (groupStageComplete) {
+    const seen = new Set<string>();
+    const push = (
+      team_code: string,
+      group_letter: string,
+      origin: ClasificadoPickDetail["origin"],
+    ) => {
+      if (seen.has(team_code)) return;
+      seen.add(team_code);
+      const qualified = realQualifiers.has(team_code);
+      clasificados.push({ team_code, group_letter, origin, qualified, points: qualified ? 1 : 0 });
+    };
+
+    const myGroupScores: MatchScore[] = [];
+    for (const p of predictions) {
+      if (p.player_id !== playerId) continue;
+      const m = matchesById.get(p.match_id);
+      if (!m || m.stage !== "group" || !m.home_team_code || !m.away_team_code) continue;
+      myGroupScores.push({
+        home_team_code: m.home_team_code,
+        away_team_code: m.away_team_code,
+        home_score: p.home_score,
+        away_score: p.away_score,
+      });
+    }
+    const myStandings = computeStandings(teams, myGroupScores);
+    for (const s of myStandings) {
+      if (s.position === 1) push(s.team_code, s.group_letter, "1");
+      else if (s.position === 2) push(s.team_code, s.group_letter, "2");
+    }
+    for (const t of thirdPicks) {
+      if (t.player_id !== playerId) continue;
+      const team = teams.find((tt) => tt.code === t.team_code);
+      push(t.team_code, team?.group_letter ?? "", "tercero");
+    }
+  }
+
+  const cuadro: CuadroPickDetail[] = [];
+  for (const b of bracketPicks) {
+    if (b.player_id !== playerId) continue;
+    if (!b.winner_team_code) continue;
+    const m = matchesById.get(b.slot_id);
+    const adv = advancerByMatch.get(b.slot_id);
+    const status: CuadroPickDetail["status"] =
+      adv === undefined ? "pending" : adv === b.winner_team_code ? "hit" : "miss";
+    const points = status === "hit" ? CUADRO_BONUS[b.round] ?? 0 : 0;
+    cuadro.push({
+      round: b.round,
+      slot_id: b.slot_id,
+      home_team_code: m?.home_team_code ?? null,
+      away_team_code: m?.away_team_code ?? null,
+      picked_team_code: b.winner_team_code,
+      status,
+      points,
+    });
+  }
+  cuadro.sort((a, b) => ROUND_ORDER[a.round] - ROUND_ORDER[b.round]);
+
+  return { clasificados_ready: groupStageComplete, clasificados, cuadro };
 }
