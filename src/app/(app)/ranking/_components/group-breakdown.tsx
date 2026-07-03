@@ -45,6 +45,7 @@ interface Props {
   playedCount: number;
   totalCount: number;
   defaultOpen?: boolean;
+  pickLabel?: string;
 }
 
 export function GroupBreakdown({
@@ -55,6 +56,7 @@ export function GroupBreakdown({
   playedCount,
   totalCount,
   defaultOpen = false,
+  pickLabel = "Tu pick",
 }: Props) {
   const [open, setOpen] = React.useState(defaultOpen);
 
@@ -152,7 +154,7 @@ export function GroupBreakdown({
                 {myPick && (
                   <div className="px-4 sm:px-5 pb-3 -mt-1 flex items-center gap-2 text-xs">
                     <span className="text-[var(--color-text-subtle)] uppercase tracking-wider font-semibold">
-                      Tu pick
+                      {pickLabel}
                     </span>
                     <span className="tabular-nums font-semibold text-[var(--color-text)]">
                       {myPick.pred_home} - {myPick.pred_away}

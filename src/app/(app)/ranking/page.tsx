@@ -208,6 +208,7 @@ export default async function RankingPage({
   const selectedPlayer = playerList.find((p) => p.id === selectedPlayerId);
   const selectedPlayerName = selectedPlayer?.name ?? "—";
   const isViewingSelf = selectedPlayerId === session.playerId;
+  const pickLabel = isViewingSelf ? "Tu pick" : `Pick de ${selectedPlayerName}`;
 
   // Construir mapa del pronóstico del jugador SELECCIONADO por match (no siempre el tuyo)
   const myPicksByMatch = new Map<string, GroupMyPick>();
@@ -329,6 +330,7 @@ export default async function RankingPage({
         matchList={matchList}
         teamsByCode={teamsByCode}
         myPicksByMatch={myPicksByMatch}
+        pickLabel={pickLabel}
       />
 
       <section className="space-y-3">
@@ -396,6 +398,7 @@ export default async function RankingPage({
               playedCount={playedCount}
               totalCount={groupMatches.length}
               defaultOpen={idx === 0}
+              pickLabel={pickLabel}
             />
           );
         })}
@@ -412,10 +415,12 @@ function EliminationsSection({
   matchList,
   teamsByCode,
   myPicksByMatch,
+  pickLabel,
 }: {
   matchList: MatchDB[];
   teamsByCode: Map<string, TeamDB>;
   myPicksByMatch: Map<string, RoundMyPick>;
+  pickLabel: string;
 }) {
   const ROUNDS_ORDER: Round[] = ["r32", "r16", "qf", "sf", "final"];
   const elimMatches = matchList.filter((m) => m.stage !== "group");
@@ -465,6 +470,7 @@ function EliminationsSection({
             playedCount={playedCount}
             totalCount={roundMatches.length}
             defaultOpen={false}
+            pickLabel={pickLabel}
           />
         );
       })}
