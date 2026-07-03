@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { computeStandings, type MatchScore } from "@/lib/standings";
 import {
   computeTotals,
+  computePlayerDetail,
   type MatchData,
   type PredictionData,
   type PlayerData,
@@ -34,6 +35,9 @@ import {
   type MyPick as RoundMyPick,
 } from "./_components/round-breakdown";
 import { ROUND_LABELS, type Round } from "@/lib/bracket-structure";
+import { PlayerSelect } from "./_components/player-select";
+import { ClasificadosBreakdown, type ClasificadoRow } from "./_components/clasificados-breakdown";
+import { CuadroBreakdown, type CuadroRow } from "./_components/cuadro-breakdown";
 
 export const metadata = { title: "Ranking" };
 
@@ -59,15 +63,22 @@ interface TeamDB { code: string; name: string; group_letter: string; flag_emoji:
 interface ThirdDB { player_id: string; team_code: string }
 interface BracketDB { player_id: string; slot_id: string; round: Round; winner_team_code: string | null }
 
+const ORIGIN_ORDER: Record<ClasificadoRow["origin"], number> = { "1": 0, "2": 1, tercero: 2 };
+
 const PODIUM = [
   { Icon: Trophy, color: "var(--color-gold)" },
   { Icon: Medal, color: "var(--color-text-subtle)" },
   { Icon: Award, color: "#B87333" },
 ];
 
-export default async function RankingPage() {
+export default async function RankingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ jugador?: string }>;
+}) {
   const session = await getSession();
   if (!session) return null;
+  const { jugador } = await searchParams;
 
   const supabase = adminClient();
 
@@ -191,10 +202,18 @@ export default async function RankingPage() {
 
   const teamsByCode = new Map(teamList.map((t) => [t.code, t]));
 
-  // Construir mapa de MI pronóstico por match (para mostrar en breakdowns como info personal)
+  const selectedPlayerId = playerList.some((p) => p.id === jugador)
+    ? (jugador as string)
+    : session.playerId;
+  const selectedPlayer = playerList.find((p) => p.id === selectedPlayerId);
+  const selectedPlayerName = selectedPlayer?.name ?? "—";
+  const isViewingSelf = selectedPlayerId === session.playerId;
+  const pickLabel = isViewingSelf ? "Tu pick" : `Pick de ${selectedPlayerName}`;
+
+  // Construir mapa del pronóstico del jugador SELECCIONADO por match (no siempre el tuyo)
   const myPicksByMatch = new Map<string, GroupMyPick>();
   for (const p of predList) {
-    if (p.player_id !== session.playerId) continue;
+    if (p.player_id !== selectedPlayerId) continue;
     const m = matchList.find((mm) => mm.id === p.match_id);
     const hasResult = m && m.home_score !== null && m.away_score !== null;
     const points = hasResult
@@ -213,6 +232,62 @@ export default async function RankingPage() {
       exact,
       winner,
     });
+  }
+
+  const playerDetail = computePlayerDetail(
+    selectedPlayerId,
+    matchDataForCalc,
+    predDataForCalc,
+    thirdDataForCalc,
+    bracketDataForCalc,
+    teamDataForCalc,
+  );
+
+  const clasificadoRows: ClasificadoRow[] = playerDetail.clasificados
+    .map((c) => {
+      const t = teamsByCode.get(c.team_code);
+      return {
+        team_code: c.team_code,
+        team_name: t?.name ?? c.team_code,
+        flag_emoji: t?.flag_emoji ?? null,
+        group_letter: c.group_letter,
+        origin: c.origin,
+        qualified: c.qualified,
+        points: c.points,
+      };
+    })
+    .sort((a, b) => {
+      if (a.group_letter !== b.group_letter) return a.group_letter.localeCompare(b.group_letter);
+      return ORIGIN_ORDER[a.origin] - ORIGIN_ORDER[b.origin];
+    });
+
+  const cuadroRowsByRound: Record<Round, CuadroRow[]> = {
+    r32: [],
+    r16: [],
+    qf: [],
+    sf: [],
+    final: [],
+  };
+  for (const c of playerDetail.cuadro) {
+    const home = c.home_team_code ? teamsByCode.get(c.home_team_code) : undefined;
+    const away = c.away_team_code ? teamsByCode.get(c.away_team_code) : undefined;
+    const picked = teamsByCode.get(c.picked_team_code);
+    cuadroRowsByRound[c.round].push({
+      slot_id: c.slot_id,
+      home_name: home?.name ?? c.home_team_code ?? "Por definir",
+      home_emoji: home?.flag_emoji ?? null,
+      away_name: away?.name ?? c.away_team_code ?? "Por definir",
+      away_emoji: away?.flag_emoji ?? null,
+      picked_name: picked?.name ?? c.picked_team_code,
+      picked_emoji: picked?.flag_emoji ?? null,
+      status: c.status,
+      points: c.points,
+    });
+  }
+  for (const round of Object.keys(cuadroRowsByRound) as Round[]) {
+    cuadroRowsByRound[round].sort((a, b) =>
+      a.slot_id.localeCompare(b.slot_id, undefined, { numeric: true }),
+    );
   }
 
   // Construir grupos con sus standings y matches
@@ -235,12 +310,27 @@ export default async function RankingPage() {
         </p>
       </header>
 
-      <SummaryTable totals={totals} mePlayerId={session.playerId} />
+      <SummaryTable
+        totals={totals}
+        mePlayerId={session.playerId}
+        selectedPlayerId={selectedPlayerId}
+      />
+
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="text-lg font-[family-name:var(--font-display)] font-semibold text-[var(--color-text)]">
+          Detalle de {selectedPlayerName}
+          {isViewingSelf && (
+            <span className="ml-2 text-sm font-normal text-[var(--color-primary)]">(tú)</span>
+          )}
+        </h2>
+        <PlayerSelect players={playerList} selectedId={selectedPlayerId} />
+      </div>
 
       <EliminationsSection
         matchList={matchList}
         teamsByCode={teamsByCode}
         myPicksByMatch={myPicksByMatch}
+        pickLabel={pickLabel}
       />
 
       <section className="space-y-3">
@@ -308,10 +398,15 @@ export default async function RankingPage() {
               playedCount={playedCount}
               totalCount={groupMatches.length}
               defaultOpen={idx === 0}
+              pickLabel={pickLabel}
             />
           );
         })}
       </section>
+
+      <ClasificadosBreakdown ready={playerDetail.clasificados_ready} rows={clasificadoRows} />
+
+      <CuadroBreakdown rowsByRound={cuadroRowsByRound} />
     </div>
   );
 }
@@ -320,10 +415,12 @@ function EliminationsSection({
   matchList,
   teamsByCode,
   myPicksByMatch,
+  pickLabel,
 }: {
   matchList: MatchDB[];
   teamsByCode: Map<string, TeamDB>;
   myPicksByMatch: Map<string, RoundMyPick>;
+  pickLabel: string;
 }) {
   const ROUNDS_ORDER: Round[] = ["r32", "r16", "qf", "sf", "final"];
   const elimMatches = matchList.filter((m) => m.stage !== "group");
@@ -373,6 +470,7 @@ function EliminationsSection({
             playedCount={playedCount}
             totalCount={roundMatches.length}
             defaultOpen={false}
+            pickLabel={pickLabel}
           />
         );
       })}
@@ -383,6 +481,7 @@ function EliminationsSection({
 function SummaryTable({
   totals,
   mePlayerId,
+  selectedPlayerId,
 }: {
   totals: Array<{
     player_id: string;
@@ -396,6 +495,7 @@ function SummaryTable({
     group_matches_played: number;
   }>;
   mePlayerId: string;
+  selectedPlayerId: string;
 }) {
   if (totals.length === 0) {
     return (
@@ -457,19 +557,29 @@ function SummaryTable({
                       {idx + 1}
                     </td>
                     <td className="py-3 px-2">
-                      <span className="inline-flex items-center gap-2">
+                      <Link
+                        href={`/ranking?jugador=${encodeURIComponent(row.player_id)}`}
+                        className="inline-flex items-center gap-2 hover:underline"
+                      >
                         {podium ? (
                           <podium.Icon className="h-4 w-4 shrink-0" style={{ color: podium.color }} />
                         ) : (
                           <span className="w-4 h-4 shrink-0" />
                         )}
-                        <span className={cn("truncate", isMe && "font-semibold")}>
+                        <span
+                          className={cn(
+                            "truncate",
+                            isMe && "font-semibold",
+                            row.player_id === selectedPlayerId &&
+                              "text-[var(--color-primary)] font-semibold",
+                          )}
+                        >
                           {row.player_name}
                           {isMe && (
                             <span className="ml-1.5 text-xs text-[var(--color-primary)]">(tú)</span>
                           )}
                         </span>
-                      </span>
+                      </Link>
                     </td>
                     <td className="text-center tabular-nums py-3 px-2 text-[var(--color-info)] font-medium">
                       {row.group_points}
